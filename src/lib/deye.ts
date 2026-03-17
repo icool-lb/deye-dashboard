@@ -25,10 +25,16 @@ export async function getAccessToken(): Promise<string> {
     }),
   })
 
-  const data = await res.json()
+  const text = await res.text()
+  let data: any
+  try {
+    data = JSON.parse(text)
+  } catch {
+    throw new Error(`API non-JSON response: ${text.slice(0, 300)}`)
+  }
 
   if (!data?.data?.accessToken) {
-    throw new Error(data?.msg || 'Failed to get access token')
+    throw new Error(`Token failed - code:${data?.code} msg:${data?.msg || data?.message || JSON.stringify(data)}`)
   }
 
   cachedToken = data.data.accessToken
