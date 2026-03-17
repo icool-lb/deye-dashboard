@@ -1,44 +1,47 @@
 import crypto from 'crypto'
 
-const BASE_URL = process.env.DEYE_API_BASE_URL || 'https://eu1-developer.deyecloud.com/v1.0'
+const BASE_URL = (process.env.DEYE_API_BASE_URL || 'https://eu1-developer.deyecloud.com/v1.0').trim()
 
 let cachedToken: string | null = null
 let tokenExpiry: number = 0
 
-export async function getAccessToken(): Promise<string> {
-  // Return cached token if still valid (tokens last 2 hours, refresh after 1.5h)
-  if (cachedToken && Date.now() < tokenExpiry) {
-    return cachedToken
-  }
-
-  const password = process.env.DEYE_PASSWORD || ''
-  const passwordMd5 = crypto.createHash('md5').update(password).digest('hex')
-
+async function tryGetToken(password: string): Promise<any> {
   const res = await fetch(`${BASE_URL}/account/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      appId: process.env.DEYE_APP_ID,
-      appSecret: process.env.DEYE_APP_SECRET,
-      email: process.env.DEYE_EMAIL,
-      password: passwordMd5,
+      appId: process.env.DEYE_APP_ID?.trim(),
+      appSecret: process.env.DEYE_APP_SECRET?.trim(),
+      email: process.env.DEYE_EMAIL?.trim(),
+      password,
     }),
   })
-
   const text = await res.text()
-  let data: any
-  try {
-    data = JSON.parse(text)
-  } catch {
-    throw new Error(`API non-JSON response: ${text.slice(0, 300)}`)
+  try { return JSON.parse(text) } catch { return { error: text.slice(0, 300) } }
+}
+
+export async function getAccessToken(): Promise<string> {
+  if (cachedToken && Date.now() < tokenExpiry) {
+    return cachedToken
   }
 
+  const rawPassword = process.env.DEYE_PASSWORD?.trim() || ''
+  const md5Password = crypto.createHash('md5').update(rawPassword).digest('hex')
+
+  // Try MD5 first (standard Deye API)
+  let data = await tryGetToken(md5Password)
+
+  // If MD5 fails, try plain password
   if (!data?.data?.accessToken) {
-    throw new Error(`Token failed - code:${data?.code} msg:${data?.msg || data?.message || JSON.stringify(data)}`)
+    const firstError = `MD5: code=${data?.code} msg=${data?.msg || JSON.stringify(data)}`
+    data = await tryGetToken(rawPassword)
+    if (!data?.data?.accessToken) {
+      throw new Error(`Both failed. ${firstError} | Plain: code=${data?.code} msg=${data?.msg || JSON.stringify(data)}`)
+    }
   }
 
   cachedToken = data.data.accessToken
-  tokenExpiry = Date.now() + 90 * 60 * 1000 // cache for 90 minutes
+  tokenExpiry = Date.now() + 90 * 60 * 1000
   return cachedToken as string
 }
 
@@ -51,7 +54,6 @@ async function deyePost(endpoint: string, body: object = {}) {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(body),
-    next: { revalidate: 60 }, // cache for 60s
   })
   return res.json()
 }
@@ -65,12 +67,10 @@ export async function getStationLatest(stationId: number) {
 }
 
 export async function getStationDay(stationId: number, date: string) {
-  // date format: YYYY-MM-DD
   return deyePost('/station/day', { stationId, date })
 }
 
 export async function getStationMonth(stationId: number, yearMonth: string) {
-  // yearMonth format: YYYY-MM
   return deyePost('/station/month', { stationId, yearMonth })
 }
 
@@ -80,20 +80,3 @@ export async function getStationYear(stationId: number, year: string) {
 
 export async function getDeviceList(stationId: number) {
   return deyePost('/device/list', { stationId })
-}
-
-export async function getDeviceLatest(deviceId: number) {
-  // Device data uses different base URL
-  const token = await getAccessToken()
-  const deviceBase = 'https://www.deyecloud.com/device-s'
-  const res = await fetch(`${deviceBase}/device/originalData`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    // @ts-ignore
-    body: JSON.stringify({ deviceId }),
-  })
-  return res.json()
-}
