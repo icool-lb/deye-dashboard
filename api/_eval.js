@@ -172,6 +172,8 @@ export async function evaluateStation(id, opts = {}) {
   if (m.days >= 7 && m.fullNights >= m.days * 0.8) F.push({ lvl: "info", t: "البطارية لا تنزل تحت 90% معظم الليالي — سعة البطارية أكبر من الحاجة أو قليلة الاستخدام." });
   if (m.coverPct !== null && m.coverPct < 60 && m.loadKwh > 0) F.push({ lvl: "warn", t: `الطاقة الشمسية تغطي ${m.coverPct}% فقط من الاستهلاك — الباقي من الشبكة/المولد (${m.importKwh} kWh).` });
   for (const inv of inverters) for (const f of inv.findings || []) F.push({ ...f, t: `[${inv.sn}] ${f.t}` });
+  const caps = [...new Set(inverters.map((i) => i.battery?.capAh).filter(Boolean))];
+  if (inverters.length > 1 && caps.length > 1) F.push({ lvl: "warn", t: `الإنفرترات على التوازي لكن سعة البطارية المضبوطة مختلفة (${caps.join(" / ")} Ah) — يجب توحيد إعدادات البطارية على كل الإنفرترات.` });
 
   const order = { bad: 0, warn: 1, info: 2, good: 3 };
   F.sort((a, b) => order[a.lvl] - order[b.lvl]);
