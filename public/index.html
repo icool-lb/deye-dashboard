@@ -413,12 +413,12 @@ async function showFleet() {
     const r = await api("fleet"); showErr("");
     const it = r.items.sort((a, b) => (a.capRatio ?? 9) - (b.capRatio ?? 9));
     const pc = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
-    const weak = it.filter((x) => x.capRatio !== null && x.capRatio < 0.75).length;
+    const weak = it.filter((x) => x.capRatio !== null && x.capRatio >= 0.15 && x.capRatio < 0.75).length;
     body.innerHTML = `<div class="card"><h2>ترتيب أداء الأنظمة</h2><div class="muted ltr" style="text-align:right">${r.from} → ${r.to} · ${it.length} نظام متصل · <b class="stale">${weak}</b> أداء ألواح ضعيف</div>
       <div class="muted">مرتّب من الأضعف للأفضل حسب قدرة الألواح الفعلية مقارنةً بالمتوقع (بعد استبعاد أوقات امتلاء البطارية). اضغط على أي نظام للتقييم الكامل.</div></div>
       <div class="card"><div class="tw"><table><thead><tr><th>النظام</th><th>kWp</th><th>قدرة الألواح</th><th>الإنتاج kWh/kWp</th><th>من المتوقع</th><th>طاقة ضائعة</th><th>التغطية</th><th>أيام بطارية &lt;20%</th></tr></thead><tbody>
       ${it.map((x) => `<tr style="cursor:pointer" onclick="openStation('${x.id}');tab('eval')"><td style="text-align:right;white-space:normal">${esc(x.name)}<div class="muted" style="font-size:11px">${esc(x.address || "")}</div></td><td>${f(x.kwp, 1)}</td>
-        <td class="${cls3(x.capRatio, .85, .7)}">${pc(x.capRatio)}</td><td>${f(x.yieldAvg, 2)}</td><td class="${cls3(x.yieldRatio, .85, .65)}">${pc(x.yieldRatio)}</td><td>${x.curtailPct ?? "—"}%</td><td>${x.coverPct ?? "—"}%</td><td class="${x.deepDays >= 3 ? "b" : ""}">${x.deepDays}</td></tr>`).join("")}
+        <td class="${x.capRatio > 1.25 || (x.capRatio !== null && x.capRatio < .15) ? "w" : cls3(x.capRatio, .85, .7)}">${pc(x.capRatio)}${x.capRatio > 1.25 || (x.capRatio !== null && x.capRatio < .15) ? "<div style='font-size:10px'>kWp خطأ؟</div>" : ""}</td><td>${f(x.yieldAvg, 2)}</td><td class="${cls3(x.yieldRatio, .85, .65)}">${pc(x.yieldRatio)}</td><td>${x.curtailPct ?? "—"}%</td><td>${x.coverPct ?? "—"}%</td><td class="${x.deepDays >= 3 ? "b" : ""}">${x.deepDays}</td></tr>`).join("")}
       </tbody></table></div></div>`;
   } catch (e) { body.innerHTML = ""; showErr(e.message); }
 }

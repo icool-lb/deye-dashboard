@@ -31,7 +31,9 @@ export function stationMetrics(rows, days, kwp) {
   // daylight frames
   const day = rows.filter((r) => { const h = hourOf(r.hm); return h >= 9 && h <= 15 && r.pv !== null; });
   const mid = day.filter((r) => { const h = hourOf(r.hm); return h >= 10.5 && h <= 13.5; });
-  const unconstrained = mid.filter((r) => r.soc === null || r.soc < 95 || (r.sell || 0) > 0.1);
+  // PV is "unconstrained" only while the battery is charging (SOC < 95%) or energy is exported; systems without a battery
+  // that do not export (e.g. pumps) are load-limited, so their PV capability cannot be measured.
+  const unconstrained = mid.filter((r) => (r.soc !== null && r.soc < 95) || (r.sell || 0) > 0.1);
   const capFrames = unconstrained.length >= 6 ? unconstrained : [];
   let best = null;
   for (const r of capFrames) if (!best || r.pv > best.pv) best = r;
@@ -158,11 +160,14 @@ export async function evaluateStation(id, opts = {}) {
   const yieldG = m.yieldRatio === null ? "na" : (m.curtailPct >= 25 ? "limited" : grade(m.yieldRatio, 0.85, 0.65));
   if (!kwp) F.push({ lvl: "warn", t: "القدرة المركّبة (kWp) غير مسجّلة في Deye Cloud — لا يمكن تقييم الإنتاج بدقة. أدخلها في إعدادات المحطة." });
   if (m.dataPct < 70) F.push({ lvl: "warn", t: `البيانات ناقصة (${m.dataPct}% فقط من القراءات وصلت) — اتصال اللوغر غير مستقر.` });
-  if (m.capRatio !== null) {
+  const kwpSuspect = m.capRatio !== null && (m.capRatio > 1.25 || m.capRatio < 0.15);
+  if (kwpSuspect) F.push({ lvl: "warn", t: m.capRatio > 1.25 ? `الألواح أنتجت ${m.bestPv.kw} kW وهذا أكثر من المتوقع لـ ${kwp} kWp — القدرة المسجّلة في Deye أقل من الحقيقية على الأرجح؛ صحّحها حتى يكون التقييم دقيقاً.` : `القدرة المسجّلة ${kwp} kWp لا تتطابق مع الإنتاج (${m.bestPv.kw} kW) — على الأرجح خطأ في إدخال الـ kWp.` });
+  if (m.capRatio !== null && !kwpSuspect) {
     if (m.capRatio < 0.7) F.push({ lvl: "bad", t: `أعلى قدرة وصلتها الألواح ${m.bestPv.kw} kW بينما المتوقع لـ ${kwp} kWp بهذا الشهر حوالي ${m.expectedPeak} kW (${Math.round(m.capRatio * 100)}%) — احتمال: ألواح متسخة، تظليل، String مفصول، أو kWp مسجّلة أكبر من الحقيقة.` });
     else if (m.capRatio < 0.85) F.push({ lvl: "warn", t: `أعلى قدرة للألواح ${m.bestPv.kw} kW = ${Math.round(m.capRatio * 100)}% من المتوقع (${m.expectedPeak} kW) — أقل بقليل من الطبيعي، يُنصح بتنظيف الألواح والتحقق من التظليل.` });
     else F.push({ lvl: "good", t: `الألواح وصلت ${m.bestPv.kw} kW = ${Math.round(m.capRatio * 100)}% من المتوقع — قدرة الألواح سليمة.` });
-  } else if (m.curtailPct !== null && m.curtailPct > 50) F.push({ lvl: "info", t: "البطارية كانت ممتلئة معظم أوقات النهار، فلا يمكن قياس القدرة الحقيقية للألواح في هذه الفترة." });
+  } else if (m.capRatio === null && m.socMinMedian === null) F.push({ lvl: "info", t: "النظام بدون بطارية ولا يصدّر للشبكة، فالإنتاج محدود بالحمل (مثل المضخات) — لا يمكن قياس القدرة القصوى للألواح من البيانات." });
+  else if (m.capRatio === null && m.curtailPct !== null && m.curtailPct > 50) F.push({ lvl: "info", t: "البطارية كانت ممتلئة معظم أوقات النهار، فلا يمكن قياس القدرة الحقيقية للألواح في هذه الفترة." });
   if (m.curtailPct !== null && m.curtailPct >= 25) F.push({ lvl: "info", t: `في ${m.curtailPct}% من ساعات النهار كانت البطارية ممتلئة والإنتاج محدود بالاستهلاك — طاقة شمسية ضائعة. يمكن الاستفادة منها بحمل إضافي نهاراً (سخان، مضخة، تكييف) أو تفعيل البيع للشبكة إن وُجد عدّاد.` });
   if (m.yieldRatio !== null && yieldG !== "limited") {
     if (m.yieldRatio < 0.65) F.push({ lvl: "bad", t: `الإنتاج اليومي ${m.yieldAvg} kWh/kWp مقابل ${m.yieldExpected} متوقع (${Math.round(m.yieldRatio * 100)}%).` });
