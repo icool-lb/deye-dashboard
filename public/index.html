@@ -12,7 +12,7 @@
 :root{--blue:#0066A7;--orange:#F1471E;--ink:#14222f;--muted:#5b6977;--line:#d6dee7;--panel:#f6f9fc;--ok:#1a9b5c;--bad:#c0392b}
 *{box-sizing:border-box}
 body{margin:0;font-family:Cairo,system-ui,sans-serif;color:var(--ink);background:#eef3f8;-webkit-text-size-adjust:100%}
-header{background:#fff;border-bottom:3px solid var(--blue);padding:10px 14px calc(10px);display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5}
+header{background:#fff;border-bottom:3px solid var(--blue);padding:10px 14px calc(10px);display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:1100}
 header img{height:40px;width:auto;flex:0 0 auto;object-fit:contain}
 header .t{flex:1;line-height:1.2;min-width:0}
 header .t b{display:block;font-size:15px;color:var(--blue)}
@@ -69,6 +69,15 @@ tr.max td{background:#fff5f2;font-weight:800}
 .fd.bad{background:#fdecea;border-color:#f3b8b1}.fd.warn{background:#fff5e6;border-color:#f6cf98}.fd.info{background:#eef5fb;border-color:#c5dcef}.fd.good{background:#eaf7ef;border-color:#b9e2c7}
 td.g{color:#1a9b5c;font-weight:700}td.w{color:#c97a00;font-weight:700}td.b{color:#c0392b;font-weight:800}
 .topnav{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto}.topnav button{white-space:nowrap}
+#map{height:62vh;min-height:360px;border-radius:14px;border:1px solid var(--line);margin-bottom:10px}
+.mleg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}.mleg button{font-size:12px;padding:5px 10px;background:#fff;color:var(--ink);border:1px solid var(--line)}
+.mleg button.off{opacity:.4}.mleg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:5px;vertical-align:middle}
+.pin-banner{background:var(--orange);color:#fff;border-radius:10px;padding:10px;margin-bottom:8px;font-weight:700;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pin-banner button{background:#fff;color:var(--orange);padding:6px 10px}
+.nol{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);font-size:14px}
+.nol button{font-size:12px;padding:6px 10px}
+.leaflet-popup-content{font-family:Cairo,system-ui,sans-serif;direction:rtl;text-align:right;margin:10px 12px}
+.pp b{color:var(--blue)}.pp .kv{font-size:12px}.pp button{font-size:12px;padding:6px 10px;margin-top:6px}
 footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
 </style>
 </head>
@@ -90,7 +99,7 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
 
   <!-- stations -->
   <section id="listView">
-    <div class="topnav"><button onclick="showFleet()">ترتيب أداء الأنظمة</button><button class="or" onclick="showAlerts()">التنبيهات</button></div>
+    <div class="topnav"><button onclick="showMap()">🗺️ خريطة الأنظمة</button><button onclick="showFleet()">ترتيب أداء الأنظمة</button><button class="or" onclick="showAlerts()">التنبيهات</button></div>
     <div class="card">
       <div class="row">
         <input id="q" placeholder="ابحث باسم النظام أو المنطقة…" oninput="renderList()" style="flex:1;min-width:180px">
@@ -115,6 +124,19 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
   <!-- station detail -->
   <section id="fleetView" class="hide"><div id="fleetBody"></div></section>
   <section id="alertsView" class="hide"><div id="alertsBody"></div></section>
+  <section id="mapView" class="hide">
+    <div class="card" style="padding:12px">
+      <h2 style="margin-bottom:4px">خريطة أنظمة iCOOL</h2>
+      <div class="muted" id="mapCount"></div>
+      <div class="mleg" id="mapLeg"></div>
+      <div id="pinBanner" class="pin-banner hide"></div>
+      <div id="map"></div>
+      <div class="muted" style="font-size:12px">الحجم حسب القدرة المركبة (kWp). اضغط على أي نظام لتفاصيله.</div>
+    </div>
+    <div class="card"><h2>أنظمة بدون موقع <span class="badge" id="noLocN"></span></h2>
+      <div class="muted" style="font-size:13px;margin-bottom:6px">اضغط "حدد على الخريطة" ثم اضغط مكان النظام على الخريطة، أو "موقعي الآن" إذا كنت في الموقع.</div>
+      <input id="noLocQ" placeholder="ابحث…" oninput="renderNoLoc()" style="width:100%;margin-bottom:6px"><div id="noLoc"></div></div>
+  </section>
   <section id="detail" class="hide">
     <div class="card">
       <h2 id="stName">—</h2>
@@ -168,6 +190,8 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
 <script>
 const DEMO = new URLSearchParams(location.search).has("demo");
 let stations = [], cur = null, charts = {}, lastPeaks = null;
+let LMAP = null, mLayer = null, locs = {}, mHide = new Set(), pinFor = null;
+
 const $ = (id) => document.getElementById(id);
 const f = (v, d = 1) => (v === null || v === undefined || isNaN(v)) ? "—" : Number(v).toLocaleString("en-US", { maximumFractionDigits: d, minimumFractionDigits: 0 });
 const pad = (n) => String(n).padStart(2, "0");
@@ -226,12 +250,12 @@ function renderList() {
       <div class="muted ${on ? "" : "stale"}" style="font-size:11px;margin-top:4px">${on ? (part ? "متصل جزئياً (جهاز مفصول) · " : "") : "غير متصل · "}${upd ? "آخر تحديث " + upd : ""}</div></div>`;
   }).join("") || '<div class="loading">لا توجد أنظمة</div>';
 }
-function showList() { ["fleetView", "alertsView"].forEach((x) => $(x).classList.add("hide")); $("detail").classList.add("hide"); $("listView").classList.remove("hide"); $("backBtn").classList.add("hide"); history.replaceState(null, "", location.pathname + location.search); }
+function showList() { ["fleetView", "alertsView", "mapView"].forEach((x) => $(x).classList.add("hide")); $("detail").classList.add("hide"); $("listView").classList.remove("hide"); $("backBtn").classList.add("hide"); history.replaceState(null, "", location.pathname + location.search); }
 
 // ---------------- detail ----------------
 function openStation(id) {
   cur = stations.find((s) => String(stId(s)) === String(id)) || { id };
-  ["listView", "fleetView", "alertsView"].forEach((x) => $(x).classList.add("hide")); $("detail").classList.remove("hide"); $("backBtn").classList.remove("hide");
+  ["listView", "fleetView", "alertsView", "mapView"].forEach((x) => $(x).classList.add("hide")); $("detail").classList.remove("hide"); $("backBtn").classList.remove("hide");
   { const d = new Date(); d.setDate(0); $("repMonth").value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; }
   $("stName").textContent = stName(cur);
   $("stMeta").innerHTML = [esc(cur.locationAddress), cur.installedCapacity ? `<span class="ltr">${f(cur.installedCapacity, 2)} kWp</span>` : "", `ID ${esc(id)}`, isOnline(cur) ? "" : `<span class="stale">غير متصل منذ <span class="ltr">${fmtDT(cur.lastUpdateTime)}</span></span>`].filter(Boolean).join(" · ");
@@ -406,7 +430,7 @@ async function loadEval() {
 }
 function openReport() { window.open(`/api/report?id=${stId(cur)}&month=${$("repMonth").value}&price=${$("repPrice").value}&k=${encodeURIComponent(localStorage.getItem("deyeCode") || "")}`, "_blank"); }
 // ---- fleet ranking ----
-function showView(v) { ["listView", "detail", "fleetView", "alertsView"].forEach((x) => $(x).classList.toggle("hide", x !== v)); $("backBtn").classList.toggle("hide", v === "listView"); window.scrollTo(0, 0); }
+function showView(v) { ["listView", "detail", "fleetView", "alertsView", "mapView"].forEach((x) => $(x).classList.toggle("hide", x !== v)); $("backBtn").classList.toggle("hide", v === "listView"); window.scrollTo(0, 0); }
 async function showFleet() {
   showView("fleetView"); const body = $("fleetBody"); body.innerHTML = '<div class="card loading">جاري تحليل كل الأنظمة المتصلة لآخر 7 أيام… (قد يأخذ حتى دقيقة)</div>';
   try {
@@ -453,11 +477,95 @@ async function loadDevices() {
   } catch (e) { body.innerHTML = ""; showErr(e.message); }
 }
 
+
+// ---------------- map ----------------
+const MCAT = { on: ["متصل", "#1a9b5c"], part: ["متصل جزئياً", "#f39c12"], off: ["غير متصل", "#c0392b"], nodev: ["بدون جهاز", "#8795a1"] };
+const mCat = (s) => String(s.connectionStatus || "").toUpperCase().includes("NO_DEVICE") ? "nodev" : !isOnline(s) ? "off" : isPartial(s) ? "part" : "on";
+function stLL(s) {
+  const o = locs[String(stId(s))]; if (o) return { ll: o, manual: true };
+  const la = +s.locationLat, ln = +s.locationLng; return la && ln ? { ll: [la, ln], manual: false } : null;
+}
+function loadLeaflet() {
+  if (window.L) return Promise.resolve();
+  return new Promise((ok, bad) => {
+    const c = document.createElement("link"); c.rel = "stylesheet"; c.href = "vendor/leaflet.css"; document.head.appendChild(c);
+    const s = document.createElement("script"); s.src = "vendor/leaflet.js"; s.onload = ok; s.onerror = () => bad(new Error("تعذر تحميل الخريطة")); document.head.appendChild(s);
+  });
+}
+async function showMap() {
+  showView("mapView"); $("mapCount").textContent = "جاري تحميل الخريطة…";
+  try {
+    await loadLeaflet();
+    if (!stations.length) stations = (await api("stations")).stations;
+    locs = DEMO ? {} : (await api("map")).locs || {};
+    if (!LMAP) {
+      LMAP = L.map("map", { zoomControl: true }).setView([33.6, 35.6], 9);
+      const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(LMAP);
+      const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri" });
+      L.control.layers({ "خريطة": osm, "قمر صناعي": sat }, null, { position: "topleft" }).addTo(LMAP);
+      mLayer = L.layerGroup().addTo(LMAP);
+      LMAP.on("click", (e) => { if (pinFor) savePin(pinFor, e.latlng.lat, e.latlng.lng); });
+    }
+    setTimeout(() => LMAP.invalidateSize(), 50);
+    drawMap(true); renderNoLoc();
+  } catch (e) { $("mapCount").textContent = ""; showErr(e.message); }
+}
+function drawMap(fit) {
+  mLayer.clearLayers(); const cnt = { on: 0, part: 0, off: 0, nodev: 0 }, pts = []; let placed = 0, kwp = 0;
+  for (const s of stations) {
+    const p = stLL(s), c = mCat(s); cnt[c]++; if (!p) continue; placed++;
+    if (mHide.has(c)) continue;
+    kwp += +s.installedCapacity || 0;
+    const cap = Math.min(+s.installedCapacity || 5, 300), r = 6 + Math.sqrt(cap) * 1.3;
+    const m = L.circleMarker(p.ll, { radius: r, color: "#fff", weight: 2, fillColor: MCAT[c][1], fillOpacity: .9 });
+    m.bindPopup(() => popHtml(s, c, p)); m.bindTooltip(esc(stName(s)), { direction: "top" }); m.addTo(mLayer); pts.push(p.ll);
+  }
+  $("mapCount").textContent = `${placed} نظام على الخريطة من ${stations.length} · المعروض ${f(kwp, 0)} kWp`;
+  $("mapLeg").innerHTML = Object.entries(MCAT).map(([k, [t, col]]) => `<button class="${mHide.has(k) ? "off" : ""}" onclick="togCat('${k}')"><i style="background:${col}"></i>${t} (${cnt[k]})</button>`).join("");
+  if (fit && pts.length) LMAP.fitBounds(pts, { padding: [30, 30], maxZoom: 13 });
+}
+function togCat(k) { mHide.has(k) ? mHide.delete(k) : mHide.add(k); drawMap(false); }
+function popHtml(s, c, p) {
+  const id = esc(stId(s)), on = c === "on" || c === "part";
+  return `<div class="pp"><b>${esc(stName(s))}</b><div class="muted" style="font-size:12px">${MCAT[c][0]}${s.locationAddress ? " · " + esc(s.locationAddress) : ""}</div>
+    <div class="kv"><span>القدرة <b class="ltr">${f(s.installedCapacity, 1)} kWp</b></span>${on ? ` <span>الإنتاج <b class="ltr">${f(W2kW(s.generationPower), 1)} kW</b></span> <span>البطارية <b class="ltr">${f(s.batterySOC, 0)}%</b></span>` : ""}</div>
+    <div class="muted" style="font-size:11px">آخر تحديث ${fmtDT(s.lastUpdateTime)}${p.manual ? " · موقع محدد يدوياً" : ""}</div>
+    <button onclick="openStation('${id}')">فتح النظام</button> <button class="ghost" onclick="startPin('${id}')">تعديل الموقع</button>
+    <a class="ghost" style="font-size:12px;margin-inline-start:6px" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=${p.ll[0]},${p.ll[1]}">اتجاهات</a></div>`;
+}
+function renderNoLoc() {
+  const q = ($("noLocQ").value || "").trim().toLowerCase();
+  const arr = stations.filter((s) => !stLL(s)).sort((a, b) => (isOnline(b) - isOnline(a)) || stName(a).localeCompare(stName(b)));
+  $("noLocN").textContent = arr.length;
+  $("noLoc").innerHTML = arr.filter((s) => !q || stName(s).toLowerCase().includes(q)).map((s) => `<div class="nol"><span><span class="dot ${isOnline(s) ? "on" : "off"}"></span> ${esc(stName(s))} <span class="muted ltr" style="font-size:11px">${f(s.installedCapacity, 1)} kWp</span></span>
+    <span style="white-space:nowrap"><button onclick="startPin('${esc(stId(s))}')">حدد على الخريطة</button> <button class="ghost" onclick="pinHere('${esc(stId(s))}')">موقعي الآن</button></span></div>`).join("") || '<div class="muted">كل الأنظمة لها موقع ✓</div>';
+}
+function startPin(id) {
+  pinFor = id; const s = stations.find((x) => String(stId(x)) === String(id)); LMAP.closePopup();
+  $("pinBanner").innerHTML = `اضغط على الخريطة مكان: ${esc(stName(s))}<button onclick="cancelPin()">إلغاء</button>${locs[id] ? `<button onclick="clearPin('${esc(id)}')">حذف الموقع اليدوي</button>` : ""}`;
+  $("pinBanner").classList.remove("hide"); $("map").style.cursor = "crosshair"; $("map").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+function cancelPin() { pinFor = null; $("pinBanner").classList.add("hide"); $("map").style.cursor = ""; }
+function pinHere(id) {
+  if (!navigator.geolocation) return showErr("الموقع غير متاح على هذا الجهاز");
+  navigator.geolocation.getCurrentPosition((p) => savePin(id, p.coords.latitude, p.coords.longitude), () => showErr("لم يُسمح بالوصول للموقع"), { enableHighAccuracy: true, timeout: 15000 });
+}
+async function savePin(id, lat, lng) {
+  try {
+    if (DEMO) locs[id] = [lat, lng]; else locs = (await api(`map?set=${encodeURIComponent(id)}&lat=${lat}&lng=${lng}`)).locs;
+    cancelPin(); drawMap(false); renderNoLoc(); LMAP.setView([lat, lng], Math.max(LMAP.getZoom(), 14)); showErr("");
+  } catch (e) { showErr(e.message); }
+}
+async function clearPin(id) {
+  try { if (DEMO) delete locs[id]; else locs = (await api(`map?set=${encodeURIComponent(id)}&clear=1`)).locs; cancelPin(); drawMap(false); renderNoLoc(); }
+  catch (e) { showErr(e.message); }
+}
+
 // ---------------- demo data (open with ?demo) ----------------
 function demoApi(path) {
   const u = new URL("http://x/" + path), q = Object.fromEntries(u.searchParams);
-  const st = [{ id: 101, name: "نظام تجريبي 1", locationAddress: "Demo", installedCapacity: 15.6, generationPower: 9120, batterySOC: 78, connectionStatus: "NORMAL", lastUpdateTime: Date.now() / 1000 },
-    { id: 102, name: "نظام تجريبي 2", locationAddress: "Demo", installedCapacity: 24, generationPower: 15400, batterySOC: 64, connectionStatus: "NORMAL", lastUpdateTime: Date.now() / 1000 },
+  const st = [{ id: 101, name: "نظام تجريبي 1", locationAddress: "Demo", locationLat: 33.38, locationLng: 35.48, installedCapacity: 15.6, generationPower: 9120, batterySOC: 78, connectionStatus: "NORMAL", lastUpdateTime: Date.now() / 1000 },
+    { id: 102, name: "نظام تجريبي 2", locationAddress: "Demo", locationLat: 33.65, locationLng: 35.44, installedCapacity: 24, generationPower: 15400, batterySOC: 64, connectionStatus: "NORMAL", lastUpdateTime: Date.now() / 1000 },
     { id: 103, name: "نظام تجريبي 3", locationAddress: "Demo", installedCapacity: 60, generationPower: 0, batterySOC: null, connectionStatus: "ALL_OFFLINE", lastUpdateTime: Date.now() / 1000 - 9e5 }];
   const curve = (date) => { let seed = [...date].reduce((a, c) => a + c.charCodeAt(0), 0); const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
     const rows = []; let soc = 55; for (let m = 0; m < 1440; m += 5) { const h = m / 60, pv = Math.max(0, Math.sin((h - 6) / 13 * Math.PI)) * 12 * (0.8 + rnd() * .2);
