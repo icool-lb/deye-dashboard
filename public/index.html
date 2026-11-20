@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>iCOOL · مراقبة أنظمة Deye</title>
+<meta name="theme-color" content="#0066A7">
+<link rel="apple-touch-icon" href="logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{--blue:#0066A7;--orange:#F1471E;--ink:#14222f;--muted:#5b6977;--line:#d6dee7;--panel:#f6f9fc;--ok:#1a9b5c;--bad:#c0392b}
+*{box-sizing:border-box}
+body{margin:0;font-family:Cairo,system-ui,sans-serif;color:var(--ink);background:#eef3f8;-webkit-text-size-adjust:100%}
+header{background:#fff;border-bottom:3px solid var(--blue);padding:10px 14px calc(10px);display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5}
+header img{height:40px;width:auto;flex:0 0 auto;object-fit:contain}
+header .t{flex:1;line-height:1.2;min-width:0}
+header .t b{display:block;font-size:15px;color:var(--blue)}
+header .t span{font-size:11px;color:var(--orange);font-weight:700;letter-spacing:.5px}
+main{max-width:1100px;margin:0 auto;padding:12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+h2{margin:0 0 10px;font-size:17px;color:var(--blue)}
+h3{margin:0 0 8px;font-size:15px}
+input,select,button{font-family:inherit;font-size:15px}
+input,select{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;width:100%}
+button{border:0;border-radius:10px;padding:9px 14px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer}
+button.ghost{background:var(--panel);color:var(--blue);border:1px solid var(--line)}
+button.or{background:var(--orange)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted);font-size:13px}
+.err{background:#fdecea;color:var(--bad);border-radius:10px;padding:10px;margin-bottom:10px;font-size:14px}
+.list{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.st{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;position:relative}
+.st .nm{font-weight:800;font-size:15px;margin-bottom:2px;padding-left:16px}
+.st .dot{position:absolute;left:12px;top:16px;width:9px;height:9px;border-radius:50%;background:#aab}
+.st .dot.on{background:var(--ok)}.st .dot.off{background:var(--bad)}
+.kv{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:13px}
+.kv b{color:var(--blue)}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px}
+.tabs button{white-space:nowrap;background:#fff;color:var(--ink);border:1px solid var(--line)}
+.tabs button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.tile .l{font-size:12px;color:var(--muted)}
+.tile .v{font-size:22px;font-weight:800;color:var(--ink);direction:ltr;text-align:right}
+.tile .v small{font-size:13px;color:var(--muted);font-weight:600}
+.tile.hl{border-color:var(--orange);background:#fff5f2}
+.tile.hl .v{color:var(--orange)}
+.tile .s{font-size:12px;color:var(--muted)}
+.chartbox{position:relative;height:280px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--blue);color:#fff;padding:7px 6px;font-weight:700;position:sticky;top:0}
+td{padding:6px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+tr.max td{background:#fff5f2;font-weight:800}
+.tw{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:10px}
+.ltr{direction:ltr;unicode-bidi:embed}
+.chips button{padding:6px 11px;font-size:13px}
+.chips button.on{background:var(--orange);border-color:var(--orange);color:#fff}
+.hide{display:none!important}
+.loading{color:var(--muted);padding:20px;text-align:center}
+.dev{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}
+.dev details summary{cursor:pointer;color:var(--blue);font-size:13px}
+.dev .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:2px 12px;font-size:12px;margin-top:6px}
+.off-note{background:#fdecea;color:#c0392b;border-radius:12px;padding:14px;text-align:center;font-weight:700}
+.stale{color:#c0392b!important;font-weight:700}
+.badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:20px;background:var(--panel);border:1px solid var(--line);color:var(--muted)}
+.score{width:84px;height:84px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff;flex:0 0 auto}
+.fd{border-radius:10px;padding:8px 10px;margin:6px 0;font-size:14px;border:1px solid var(--line)}
+.fd.bad{background:#fdecea;border-color:#f3b8b1}.fd.warn{background:#fff5e6;border-color:#f6cf98}.fd.info{background:#eef5fb;border-color:#c5dcef}.fd.good{background:#eaf7ef;border-color:#b9e2c7}
+td.g{color:#1a9b5c;font-weight:700}td.w{color:#c97a00;font-weight:700}td.b{color:#c0392b;font-weight:800}
+.topnav{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto}.topnav button{white-space:nowrap}
+footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.png" alt="iCOOL">
+  <div class="t"><b>مراقبة أنظمة Deye</b><span>HVAC • SOLAR • MEP</span></div>
+  <button class="ghost hide" id="backBtn" onclick="showList()">◀ الأنظمة</button>
+</header>
+<main>
+  <div id="err" class="err hide"></div>
+
+  <!-- login -->
+  <section id="login" class="card hide">
+    <h2>الدخول</h2>
+    <p class="muted">أدخل رمز الدخول الخاص بالمنصة.</p>
+    <div class="row"><input id="code" type="password" placeholder="رمز الدخول" style="flex:1"><button onclick="saveCode()">دخول</button></div>
+  </section>
+
+  <!-- stations -->
+  <section id="listView">
+    <div class="topnav"><button onclick="showFleet()">ترتيب أداء الأنظمة</button><button class="or" onclick="showAlerts()">التنبيهات</button></div>
+    <div class="card">
+      <div class="row">
+        <input id="q" placeholder="ابحث باسم النظام أو المنطقة…" oninput="renderList()" style="flex:1;min-width:180px">
+        <select id="sort" onchange="renderList()" style="width:auto">
+          <option value="name">ترتيب: الاسم</option>
+          <option value="pv">الإنتاج الآن</option>
+          <option value="cap">القدرة المركبة</option>
+          <option value="soc">البطارية</option>
+        </select>
+        <select id="flt" onchange="renderList()" style="width:auto">
+          <option value="all">الكل</option>
+          <option value="on">متصل</option>
+          <option value="off">غير متصل</option>
+        </select>
+        <button class="ghost" onclick="loadStations()">↻</button>
+      </div>
+      <div class="muted" id="count" style="margin-top:8px"></div>
+    </div>
+    <div id="stations" class="list"></div>
+  </section>
+
+  <!-- station detail -->
+  <section id="fleetView" class="hide"><div id="fleetBody"></div></section>
+  <section id="alertsView" class="hide"><div id="alertsBody"></div></section>
+  <section id="detail" class="hide">
+    <div class="card">
+      <h2 id="stName">—</h2>
+      <div class="muted" id="stMeta"></div>
+    </div>
+    <div class="tabs">
+      <button data-t="peaks" class="on" onclick="tab('peaks')">الذروة اليومية</button>
+      <button data-t="live" onclick="tab('live')">الآن</button>
+      <button data-t="day" onclick="tab('day')">منحنى اليوم</button>
+      <button data-t="eval" onclick="tab('eval')">تقييم الأداء</button>
+      <button data-t="devices" onclick="tab('devices')">الأجهزة</button>
+      <button data-t="report" onclick="tab('report')">تقرير شهري</button>
+    </div>
+
+    <div id="t-peaks">
+      <div class="card">
+        <div class="row chips" id="ranges">
+          <button class="ghost" data-r="1">اليوم</button>
+          <button class="ghost on" data-r="7">7 أيام</button>
+          <button class="ghost" data-r="30">30 يوم</button>
+          <button class="ghost" data-r="90">90 يوم</button>
+          <button class="ghost" data-r="365">سنة</button>
+          <button class="ghost" data-r="730">سنتان</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <input type="date" id="from" style="flex:1;min-width:130px"><span class="muted">إلى</span><input type="date" id="to" style="flex:1;min-width:130px">
+          <button onclick="loadPeaks()">عرض</button>
+        </div>
+      </div>
+      <div id="peaksBody"></div>
+    </div>
+
+    <div id="t-live" class="hide"><div id="liveBody"></div></div>
+
+    <div id="t-day" class="hide">
+      <div class="card row">
+        <button class="ghost" onclick="shiftDay(-1)">◀</button>
+        <input type="date" id="dayPick" style="flex:1" onchange="loadDay()">
+        <button class="ghost" onclick="shiftDay(1)">▶</button>
+      </div>
+      <div id="dayBody"></div>
+    </div>
+
+    <div id="t-devices" class="hide"><div id="devBody"></div></div>
+    <div id="t-eval" class="hide"><div class="card row"><select id="evDays" style="width:auto" onchange="loadEval()"><option value="14">آخر 14 يوم</option><option value="30" selected>آخر 30 يوم</option><option value="60">آخر 60 يوم</option></select><span class="muted">يحلل الألواح والـ Strings والإنفرتر والبطارية</span></div><div id="evalBody"></div></div>
+    <div id="t-report" class="hide"><div class="card"><h3>التقرير الشهري للزبون</h3><div class="row"><input type="month" id="repMonth" style="flex:1"><input type="number" id="repPrice" value="0.30" step="0.01" style="width:110px" title="سعر الكيلوواط $"><button onclick="openReport()">فتح التقرير</button></div><div class="muted" style="margin-top:6px">التقرير يفتح بصفحة جديدة: اضغط "حفظ PDF / طباعة" ثم شاركه على الواتساب. السعر = كلفة الكيلوواط من المولد/الشبكة لحساب التوفير.</div></div></div>
+  </section>
+</main>
+<footer>iCOOL Trading &amp; Contracting — COOL YOUR LIFE · Eng. Ahmad Mohammad Nasser · OEA 36359</footer>
+
+<script>
+const DEMO = new URLSearchParams(location.search).has("demo");
+let stations = [], cur = null, charts = {}, lastPeaks = null;
+const $ = (id) => document.getElementById(id);
+const f = (v, d = 1) => (v === null || v === undefined || isNaN(v)) ? "—" : Number(v).toLocaleString("en-US", { maximumFractionDigits: d, minimumFractionDigits: 0 });
+const pad = (n) => String(n).padStart(2, "0");
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const addD = (s, n) => { const d = new Date(s + "T12:00:00"); d.setDate(d.getDate() + n); return ymd(d); };
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const W2kW = (v) => v === null || v === undefined || v === "" ? null : Number(v) / 1000;
+
+function showErr(m) { $("err").textContent = m; $("err").classList.toggle("hide", !m); }
+
+async function api(path) {
+  if (DEMO) return demoApi(path);
+  const r = await fetch("/api/" + path, { headers: { "x-access-code": localStorage.getItem("deyeCode") || "" } });
+  const j = await r.json().catch(() => ({ ok: false, error: r.status === 504 ? "الفترة طويلة جداً — جرّب فترة أقصر" : "استجابة غير صالحة" }));
+  if (r.status === 401) { $("login").classList.remove("hide"); throw new Error(j.error); }
+  if (!j.ok) throw new Error(j.error || "خطأ");
+  return j;
+}
+function saveCode() { localStorage.setItem("deyeCode", $("code").value.trim()); $("login").classList.add("hide"); showErr(""); loadStations(); }
+
+// ---------------- stations ----------------
+async function loadStations() {
+  $("stations").innerHTML = '<div class="loading">جاري تحميل الأنظمة…</div>';
+  try { stations = (await api("stations")).stations; showErr(""); renderList(); }
+  catch (e) { $("stations").innerHTML = ""; showErr(e.message); }
+}
+const stId = (s) => s.id ?? s.stationId;
+const stName = (s) => s.name ?? s.stationName ?? ("#" + stId(s));
+const tsMs = (v) => (v ? +v * (v > 1e11 ? 1 : 1000) : null);
+const fmtDT = (v) => (tsMs(v) ? new Date(tsMs(v)).toLocaleString("en-GB", { hour12: false }) : "");
+const ageH = (s) => (tsMs(s.lastUpdateTime) ? (Date.now() - tsMs(s.lastUpdateTime)) / 36e5 : 1e9);
+function isOnline(s) { const st = String(s.connectionStatus || "").toUpperCase(); return ageH(s) < 3 && !st.includes("ALL_OFFLINE") && !st.includes("NO_DEVICE"); }
+const isPartial = (s) => String(s.connectionStatus || "").toUpperCase().includes("PARTIAL");
+// end date for ranges: today, or the last day the system sent data when it went offline
+const anchor = () => (ageH(cur) > 24 && tsMs(cur.lastUpdateTime) ? ymd(new Date(tsMs(cur.lastUpdateTime))) : ymd(new Date()));
+function noData(what) {
+  const h = ageH(cur);
+  if (h > 24) return `<div class="card off-note">لا توجد بيانات ${what} — النظام لا يرسل بيانات إلى الكلاود منذ <span class="ltr">${fmtDT(cur.lastUpdateTime)}</span> (${Math.floor(h / 24)} يوم).<br><span style="font-weight:400">تحقق من اللوغر أو اتصال الواي فاي في الموقع.</span></div>`;
+  return `<div class="card loading">لا توجد بيانات ${what}</div>`;
+}
+function renderList() {
+  const q = $("q").value.trim().toLowerCase(), so = $("sort").value, fl = $("flt").value;
+  let arr = stations.filter((s) => !q || JSON.stringify([stName(s), s.locationAddress, stId(s)]).toLowerCase().includes(q));
+  if (fl !== "all") arr = arr.filter((s) => isOnline(s) === (fl === "on"));
+  const key = { name: (s) => stName(s), pv: (s) => -(+s.generationPower || 0), cap: (s) => -(+s.installedCapacity || 0), soc: (s) => -(+s.batterySOC || 0) }[so];
+  arr.sort((a, b) => { const x = key(a), y = key(b); return typeof x === "string" ? x.localeCompare(y, "ar") : x - y; });
+  const offN = stations.filter((s) => !isOnline(s)).length;
+  $("count").textContent = `${arr.length} من ${stations.length} نظام · غير متصل: ${offN}`;
+  $("stations").innerHTML = arr.map((s) => {
+    const on = isOnline(s), part = on && isPartial(s), cls = on ? "on" : "off", upd = fmtDT(s.lastUpdateTime);
+    return `<div class="st" onclick="openStation('${esc(stId(s))}')"><span class="dot ${cls}"></span>
+      <div class="nm">${esc(stName(s))}</div><div class="muted">${esc(s.locationAddress || "")}</div>
+      <div class="kv"><span>القدرة <b class="ltr">${f(s.installedCapacity, 2)} kWp</b></span>
+      <span>الإنتاج <b class="ltr">${f(W2kW(s.generationPower), 2)} kW</b></span>
+      <span>البطارية <b class="ltr">${f(s.batterySOC, 0)}%</b></span></div>
+      <div class="muted ${on ? "" : "stale"}" style="font-size:11px;margin-top:4px">${on ? (part ? "متصل جزئياً (جهاز مفصول) · " : "") : "غير متصل · "}${upd ? "آخر تحديث " + upd : ""}</div></div>`;
+  }).join("") || '<div class="loading">لا توجد أنظمة</div>';
+}
+function showList() { ["fleetView", "alertsView"].forEach((x) => $(x).classList.add("hide")); $("detail").classList.add("hide"); $("listView").classList.remove("hide"); $("backBtn").classList.add("hide"); history.replaceState(null, "", location.pathname + location.search); }
+
+// ---------------- detail ----------------
+function openStation(id) {
+  cur = stations.find((s) => String(stId(s)) === String(id)) || { id };
+  ["listView", "fleetView", "alertsView"].forEach((x) => $(x).classList.add("hide")); $("detail").classList.remove("hide"); $("backBtn").classList.remove("hide");
+  { const d = new Date(); d.setDate(0); $("repMonth").value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; }
+  $("stName").textContent = stName(cur);
+  $("stMeta").innerHTML = [esc(cur.locationAddress), cur.installedCapacity ? `<span class="ltr">${f(cur.installedCapacity, 2)} kWp</span>` : "", `ID ${esc(id)}`, isOnline(cur) ? "" : `<span class="stale">غير متصل منذ <span class="ltr">${fmtDT(cur.lastUpdateTime)}</span></span>`].filter(Boolean).join(" · ");
+  location.hash = "s=" + id;
+  const t = anchor();
+  $("to").value = t; $("from").value = addD(t, -6); $("dayPick").value = t;
+  document.querySelectorAll("#ranges button").forEach((b) => b.classList.toggle("on", b.dataset.r === "7"));
+  tab("peaks"); window.scrollTo(0, 0);
+}
+function tab(t) {
+  document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === t));
+  ["peaks", "live", "day", "devices", "eval", "report"].forEach((x) => $("t-" + x).classList.toggle("hide", x !== t));
+  ({ peaks: loadPeaks, live: loadLive, day: loadDay, devices: loadDevices, eval: loadEval, report: () => {} })[t]();
+}
+document.querySelectorAll("#ranges button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("#ranges button").forEach((x) => x.classList.toggle("on", x === b));
+  const t = anchor(); $("to").value = t; $("from").value = addD(t, -(+b.dataset.r - 1)); loadPeaks();
+});
+function chart(id, cfg) { if (charts[id]) charts[id].destroy(); charts[id] = new Chart($(id), cfg); }
+Chart.defaults.font.family = "Cairo"; Chart.defaults.color = "#5b6977";
+
+// ---- daily peaks ----
+async function loadPeaks() {
+  const span = (new Date($("to").value) - new Date($("from").value)) / 864e5;
+  const body = $("peaksBody"); body.innerHTML = `<div class="card loading">جاري حساب الذروات من بيانات كل 5 دقائق…${span > 100 ? "<br>فترة طويلة — قد يستغرق 10 إلى 30 ثانية" : ""}</div>`;
+  try {
+    const j = await api(`peaks?id=${stId(cur)}&from=${$("from").value}&to=${$("to").value}`); lastPeaks = j; showErr("");
+    const s = j.summary, days = j.days;
+    if (!days.length) { body.innerHTML = noData("لهذه الفترة"); return; }
+    const maxDate = s.maxPeakLoad?.date;
+    body.innerHTML = `
+      <div class="card"><div class="tiles">
+        <div class="tile hl"><div class="l">أعلى ذروة استهلاك</div><div class="v">${f(s.maxPeakLoad?.kw, 2)} <small>kW</small></div><div class="s ltr">${s.maxPeakLoad ? s.maxPeakLoad.date + " · " + s.maxPeakLoad.at : ""}</div></div>
+        <div class="tile"><div class="l">متوسط الذروة اليومية</div><div class="v">${f(s.avgDailyPeak, 2)} <small>kW</small></div></div>
+        <div class="tile"><div class="l">الاستهلاك الكلي</div><div class="v">${f(s.totalLoadKwh, 1)} <small>kWh</small></div></div>
+        <div class="tile"><div class="l">الإنتاج الشمسي</div><div class="v">${f(s.totalPvKwh, 1)} <small>kWh</small></div></div>
+        <div class="tile"><div class="l">السحب من الشبكة/المولد</div><div class="v">${f(s.totalImportKwh, 1)} <small>kWh</small></div></div>
+        <div class="tile"><div class="l">نسبة التغطية الشمسية</div><div class="v">${s.totalLoadKwh ? f(Math.min(100, (1 - s.totalImportKwh / s.totalLoadKwh) * 100), 0) : "—"} <small>%</small></div></div>
+      </div></div>
+      <div class="card"><h3>الذروة اليومية للاستهلاك (kW)</h3><div class="chartbox"><canvas id="cPeaks"></canvas></div>
+        <div class="muted">اضغط على أي عمود لفتح منحنى ذلك اليوم.</div></div>
+      ${monthly(days)}
+      <div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">التفاصيل اليومية</h3><button class="or" onclick="csv()">تصدير CSV</button></div>
+      <div class="tw" style="margin-top:8px"><table><thead><tr>
+        <th>التاريخ</th><th>ذروة الاستهلاك kW</th><th>الوقت</th><th>الحمل الأساسي kW</th><th>المتوسط kW</th><th>P95 kW</th>
+        <th>استهلاك kWh</th><th>ذروة PV kW</th><th>إنتاج kWh</th><th>ذروة سحب kW</th><th>سحب kWh</th><th>SOC أدنى/أعلى</th></tr></thead><tbody>
+        ${days.slice().reverse().map((d) => `<tr class="${d.date === maxDate ? "max" : ""}" onclick="openDay('${d.date}')" style="cursor:pointer">
+          <td class="ltr">${d.date}</td><td><b>${f(d.peakLoad?.kw, 2)}</b></td><td class="ltr">${d.peakLoad?.at || "—"}</td>
+          <td>${f(d.baseLoad, 2)}</td><td>${f(d.avgLoad, 2)}</td><td>${f(d.p95Load, 2)}</td><td>${f(d.loadKwh, 1)}</td>
+          <td>${f(d.peakPv?.kw, 2)}</td><td>${f(d.pvKwh, 1)}</td><td>${f(d.peakImport?.kw, 2)}</td><td>${f(d.importKwh, 1)}</td>
+          <td class="ltr">${d.socMin ?? "—"} / ${d.socMax ?? "—"}%</td></tr>`).join("")}
+      </tbody></table></div>
+      <div class="muted" style="margin-top:6px">الحمل الأساسي = أقل استهلاك بين 00:00 و05:00 · P95 = الاستهلاك الذي لا يُتجاوز في 95% من الوقت (أفضل من الذروة اللحظية لتحديد حجم الإنفرتر).</div></div>`;
+    chart("cPeaks", {
+      data: { labels: days.map((d) => d.date.slice(5)), datasets: [
+        { type: "bar", label: "ذروة الاستهلاك", data: days.map((d) => d.peakLoad?.kw ?? null), backgroundColor: days.map((d) => d.date === maxDate ? "#F1471E" : "#0066A7"), borderRadius: 4, order: 2 },
+        { type: "line", label: "P95", data: days.map((d) => d.p95Load), borderColor: "#F1471E", borderDash: [5, 4], pointRadius: 0, borderWidth: 2, order: 1 },
+        { type: "line", label: "الحمل الأساسي", data: days.map((d) => d.baseLoad), borderColor: "#7a8a99", pointRadius: 0, borderWidth: 1.5, order: 1 },
+      ] },
+      options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, plugins: { legend: { position: "bottom" },
+        tooltip: { callbacks: { afterTitle: (it) => { const d = days[it[0].dataIndex]; return d.peakLoad ? "وقت الذروة " + d.peakLoad.at : ""; }, label: (c) => `${c.dataset.label}: ${f(c.raw, 2)} kW` } } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: "kW" } } },
+        onClick: (e, els) => { if (els.length) openDay(days[els[0].index].date); } },
+    });
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+function monthly(days) {
+  if (days.length < 45) return "";
+  const m = new Map();
+  for (const d of days) { const k = d.date.slice(0, 7); if (!m.has(k)) m.set(k, []); m.get(k).push(d); }
+  const rows = [...m.entries()].map(([k, ds]) => {
+    const pk = ds.filter((d) => d.peakLoad).reduce((b, d) => (!b || d.peakLoad.kw > b.peakLoad.kw ? d : b), null);
+    const sum = (x) => ds.reduce((s, d) => s + (d[x] || 0), 0);
+    const pks = ds.filter((d) => d.peakLoad).map((d) => d.peakLoad.kw);
+    return { k, pk, avg: pks.length ? pks.reduce((a, b) => a + b, 0) / pks.length : null, p95: Math.max(...ds.map((d) => d.p95Load ?? 0)), load: sum("loadKwh"), pv: sum("pvKwh"), imp: sum("importKwh"), n: ds.length };
+  });
+  const top = rows.reduce((b, r) => (r.pk && (!b || r.pk.peakLoad.kw > b.pk.peakLoad.kw) ? r : b), null);
+  return `<div class="card"><h3>الملخص الشهري</h3><div class="tw"><table><thead><tr><th>الشهر</th><th>أعلى ذروة kW</th><th>تاريخها ووقتها</th><th>متوسط الذروة اليومية kW</th><th>أعلى P95 kW</th><th>استهلاك kWh</th><th>إنتاج kWh</th><th>سحب kWh</th><th>أيام</th></tr></thead><tbody>
+    ${rows.slice().reverse().map((r) => `<tr class="${r === top ? "max" : ""}"><td class="ltr">${r.k}</td><td><b>${f(r.pk?.peakLoad.kw, 2)}</b></td><td class="ltr">${r.pk ? r.pk.date.slice(5) + " " + r.pk.peakLoad.at : "—"}</td><td>${f(r.avg, 2)}</td><td>${f(r.p95, 2)}</td><td>${f(r.load, 0)}</td><td>${f(r.pv, 0)}</td><td>${f(r.imp, 0)}</td><td>${r.n}</td></tr>`).join("")}
+  </tbody></table></div></div>`;
+}
+function openDay(d) { $("dayPick").value = d; tab("day"); }
+function csv() {
+  if (!lastPeaks) return;
+  const h = ["date", "peak_load_kW", "peak_time", "base_load_kW", "avg_load_kW", "p95_load_kW", "load_kWh", "peak_pv_kW", "pv_kWh", "peak_import_kW", "import_kWh", "export_kWh", "charge_kWh", "discharge_kWh", "soc_min", "soc_max"];
+  const rows = lastPeaks.days.map((d) => [d.date, d.peakLoad?.kw, d.peakLoad?.at, d.baseLoad, d.avgLoad, d.p95Load, d.loadKwh, d.peakPv?.kw, d.pvKwh, d.peakImport?.kw, d.importKwh, d.exportKwh, d.chargeKwh, d.dischargeKwh, d.socMin, d.socMax]);
+  const txt = "﻿" + [h, ...rows].map((r) => r.map((v) => v ?? "").join(",")).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt], { type: "text/csv" }));
+  a.download = `${stName(cur)}_peaks_${lastPeaks.from}_${lastPeaks.to}.csv`; a.click();
+}
+
+// ---- live ----
+async function loadLive() {
+  const body = $("liveBody"); body.innerHTML = '<div class="card loading">جاري التحميل…</div>';
+  try {
+    const L = (await api(`station?id=${stId(cur)}`)).latest; showErr("");
+    const k = (x) => W2kW(L[x]);
+    const grid = k("wirePower") ?? ((k("purchasePower") || 0) - (k("gridPower") || 0));
+    const bat = k("batteryPower") ?? ((k("dischargePower") || 0) - (k("chargePower") || 0));
+    const stale = tsMs(L.lastUpdateTime) && Date.now() - tsMs(L.lastUpdateTime) > 3 * 36e5;
+    body.innerHTML = `<div class="card">${stale ? `<div class="off-note" style="margin-bottom:10px">هذه قيم قديمة — آخر بيانات وصلت بتاريخ <span class="ltr">${fmtDT(L.lastUpdateTime)}</span></div>` : ""}<div class="tiles">
+      <div class="tile"><div class="l">الإنتاج الشمسي</div><div class="v">${f(k("generationPower"), 2)} <small>kW</small></div></div>
+      <div class="tile hl"><div class="l">الاستهلاك</div><div class="v">${f(k("consumptionPower"), 2)} <small>kW</small></div></div>
+      <div class="tile"><div class="l">الشبكة/المولد</div><div class="v">${f(Math.abs(grid), 2)} <small>kW</small></div><div class="s">${grid > 0.01 ? "سحب" : grid < -0.01 ? "تصدير" : "متوقف"}</div></div>
+      <div class="tile"><div class="l">البطارية</div><div class="v">${f(Math.abs(bat), 2)} <small>kW</small></div><div class="s">${bat > 0.01 ? "تفريغ" : bat < -0.01 ? "شحن" : "خامل"}</div></div>
+      <div class="tile"><div class="l">نسبة الشحن SOC</div><div class="v">${f(L.batterySOC, 0)} <small>%</small></div></div>
+      </div><div class="muted" style="margin-top:8px">${L.lastUpdateTime ? "آخر تحديث من الكلاود: " + fmtDT(L.lastUpdateTime) : ""}</div>
+      <div class="row" style="margin-top:8px"><button class="ghost" onclick="loadLive()">↻ تحديث</button></div></div>`;
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+
+// ---- day curve ----
+function shiftDay(n) { $("dayPick").value = addD($("dayPick").value, n); loadDay(); }
+async function loadDay() {
+  const body = $("dayBody"); body.innerHTML = '<div class="card loading">جاري التحميل…</div>';
+  try {
+    const j = await api(`day?id=${stId(cur)}&date=${$("dayPick").value}`); showErr("");
+    const r = j.rows; if (!r.length) { body.innerHTML = noData("لهذا اليوم"); return; }
+    const pk = r.reduce((b, x) => (x.load !== null && (!b || x.load > b.load) ? x : b), null);
+    const socs = r.filter((x) => x.soc !== null).map((x) => x.soc);
+    body.innerHTML = `<div class="card"><div class="tiles">
+      <div class="tile hl"><div class="l">ذروة الاستهلاك</div><div class="v">${f(pk?.load, 2)} <small>kW</small></div><div class="s ltr">${pk?.hm || ""}</div></div>
+      <div class="tile"><div class="l">ذروة الإنتاج</div><div class="v">${f(Math.max(...r.map((x) => x.pv ?? 0)), 2)} <small>kW</small></div></div>
+      <div class="tile"><div class="l">SOC أدنى / أعلى</div><div class="v">${socs.length ? f(Math.min(...socs), 0) + " / " + f(Math.max(...socs), 0) : "—"} <small>%</small></div></div>
+      <div class="tile"><div class="l">عدد القراءات</div><div class="v">${r.length}</div></div></div></div>
+      <div class="card"><h3>منحنى القدرة — <span class="ltr">${j.date}</span></h3><div class="chartbox" style="height:340px"><canvas id="cDay"></canvas></div></div>`;
+    const ds = (label, key, color, extra = {}) => ({ label, data: r.map((x) => x[key]), borderColor: color, backgroundColor: color + "22", pointRadius: 0, borderWidth: 2, tension: .25, ...extra });
+    chart("cDay", { type: "line", data: { labels: r.map((x) => x.hm), datasets: [
+      ds("الاستهلاك", "load", "#F1471E", { fill: true }),
+      ds("الإنتاج الشمسي", "pv", "#f2b705"),
+      ds("الشبكة/المولد", "grid", "#0066A7"),
+      ds("البطارية", "bat", "#1a9b5c", { hidden: true }),
+      ds("SOC %", "soc", "#7a8a99", { yAxisID: "y2", borderDash: [4, 3], borderWidth: 1.5 }),
+    ] }, options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+      plugins: { legend: { position: "bottom" }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${f(c.raw, 2)}${c.dataset.yAxisID ? "" : " kW"}` } } },
+      scales: { x: { ticks: { maxTicksLimit: 12 } }, y: { title: { display: true, text: "kW" } }, y2: { position: "right", min: 0, max: 100, grid: { display: false }, title: { display: true, text: "SOC %" } } } } });
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+
+// ---- evaluation ----
+const LV = { bad: "🔴", warn: "🟠", info: "🔵", good: "🟢" };
+const cls3 = (v, g, w) => (v === null || v === undefined ? "" : v >= g ? "g" : v >= w ? "w" : "b");
+async function loadEval() {
+  const body = $("evalBody"); body.innerHTML = '<div class="card loading">جاري تحليل النظام: الإنتاج، الـ Strings، الإنفرتر، البطارية… (10–30 ثانية)</div>';
+  try {
+    const r = await api(`evaluate?id=${stId(cur)}&days=${$("evDays").value}`); showErr("");
+    const m = r.metrics, col = r.score >= 85 ? "#1a9b5c" : r.score >= 60 ? "#e08a00" : "#c0392b";
+    const pc = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
+    body.innerHTML = `<div class="card"><div class="row" style="gap:14px;flex-wrap:nowrap"><div class="score" style="background:${col}">${r.score}</div>
+      <div><h3 style="margin:0">${esc(r.verdict)}</h3><div class="muted ltr" style="text-align:right">${r.from} → ${r.to} · ${m.days} يوم بيانات كاملة · ${m.dataPct}% من القراءات</div></div></div>
+      <div style="margin-top:10px">${r.findings.map((x) => `<div class="fd ${x.lvl}">${LV[x.lvl] || ""} ${esc(x.t)}</div>`).join("") || '<div class="fd good">🟢 لا توجد ملاحظات</div>'}</div></div>
+      <div class="card"><h3>المؤشرات</h3><div class="tiles">
+        <div class="tile"><div class="l">قدرة الألواح من المتوقع</div><div class="v">${pc(m.capRatio)}</div><div class="s">${m.bestPv ? `أعلى ${m.bestPv.kw} kW من ${m.expectedPeak} متوقع` : "غير قابل للقياس"}</div></div>
+        <div class="tile"><div class="l">الإنتاج اليومي kWh/kWp</div><div class="v">${f(m.yieldAvg, 2)}</div><div class="s">المتوقع ≈ ${f(m.yieldExpected, 1)} (${pc(m.yieldRatio)})</div></div>
+        <div class="tile"><div class="l">طاقة ضائعة (بطارية ممتلئة)</div><div class="v">${m.curtailPct ?? "—"} <small>%</small></div><div class="s">من ساعات النهار</div></div>
+        <div class="tile"><div class="l">تغطية الطاقة الشمسية</div><div class="v">${m.coverPct ?? "—"} <small>%</small></div><div class="s">سحب ${f(m.importKwh, 0)} kWh</div></div>
+        <div class="tile"><div class="l">أيام البطارية < 20%</div><div class="v">${m.deepDays}</div><div class="s">وسيط أدنى شحن ${m.socMinMedian ?? "—"}%</div></div>
+        <div class="tile"><div class="l">القدرة المركّبة</div><div class="v">${f(m.kwp, 2)} <small>kWp</small></div></div>
+      </div></div>
+      ${r.inverters.map((inv) => `<div class="card"><h3>الإنفرتر <span class="ltr">${esc(inv.sn)}</span> ${inv.rated ? `· ${f(inv.rated / 1000, 1)} kW` : ""}</h3>
+        ${inv.error ? `<div class="fd bad">${esc(inv.error)}</div>` : `<div class="tw"><table><thead><tr><th>String</th><th>أعلى قدرة W</th><th>وسيط الظهر W</th><th>الجهد V</th><th>التيار A</th><th>نسبة القدرة</th><th>نسبة التيار</th><th>نسبة الجهد</th></tr></thead><tbody>
+        ${inv.strings.map((s) => `<tr><td>PV${s.pv}</td><td>${f(s.maxW, 0)}</td><td>${f(s.medW, 0)}</td><td>${f(s.medV ?? s.latestV, 0)}</td><td>${f(s.medI ?? s.latestI, 1)}</td><td class="${cls3(s.ratioW, .85, .7)}">${pc(s.ratioW)}</td><td class="${cls3(s.ratioI, .85, .8)}">${pc(s.ratioI)}</td><td class="${cls3(s.ratioV, .95, .88)}">${pc(s.ratioV)}</td></tr>`).join("")}
+        </tbody></table></div>
+        <div class="tiles" style="margin-top:8px">
+          <div class="tile"><div class="l">أعلى حرارة</div><div class="v">${inv.maxTemp ?? "—"} <small>°C</small></div></div>
+          <div class="tile"><div class="l">Clipping</div><div class="v">${inv.clipPct ?? "—"} <small>%</small></div></div>
+          <div class="tile"><div class="l">البطارية</div><div class="v">${inv.battery.capAh ? f(inv.battery.capAh, 0) + " <small>Ah</small>" : "—"}</div><div class="s">${inv.battery.nomKwh ? "≈ " + inv.battery.nomKwh + " kWh" : ""} ${inv.battery.cycles ? "· ≈ " + inv.battery.cycles + " دورة" : ""}</div></div>
+          <div class="tile"><div class="l">كفاءة شحن/تفريغ</div><div class="v">${inv.battery.roundTrip ?? "—"} <small>%</small></div></div>
+        </div>`}</div>`).join("")}
+      <div class="muted" style="padding:0 6px">${esc(r.notes)}</div>`;
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+function openReport() { window.open(`/api/report?id=${stId(cur)}&month=${$("repMonth").value}&price=${$("repPrice").value}&k=${encodeURIComponent(localStorage.getItem("deyeCode") || "")}`, "_blank"); }
+// ---- fleet ranking ----
+function showView(v) { ["listView", "detail", "fleetView", "alertsView"].forEach((x) => $(x).classList.toggle("hide", x !== v)); $("backBtn").classList.toggle("hide", v === "listView"); window.scrollTo(0, 0); }
+async function showFleet() {
+  showView("fleetView"); const body = $("fleetBody"); body.innerHTML = '<div class="card loading">جاري تحليل كل الأنظمة المتصلة لآخر 7 أيام… (قد يأخذ حتى دقيقة)</div>';
+  try {
+    const r = await api("fleet"); showErr("");
+    const it = r.items.sort((a, b) => (a.capRatio ?? 9) - (b.capRatio ?? 9));
+    const pc = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
+    const weak = it.filter((x) => x.capRatio !== null && x.capRatio < 0.75).length;
+    body.innerHTML = `<div class="card"><h2>ترتيب أداء الأنظمة</h2><div class="muted ltr" style="text-align:right">${r.from} → ${r.to} · ${it.length} نظام متصل · <b class="stale">${weak}</b> أداء ألواح ضعيف</div>
+      <div class="muted">مرتّب من الأضعف للأفضل حسب قدرة الألواح الفعلية مقارنةً بالمتوقع (بعد استبعاد أوقات امتلاء البطارية). اضغط على أي نظام للتقييم الكامل.</div></div>
+      <div class="card"><div class="tw"><table><thead><tr><th>النظام</th><th>kWp</th><th>قدرة الألواح</th><th>الإنتاج kWh/kWp</th><th>من المتوقع</th><th>طاقة ضائعة</th><th>التغطية</th><th>أيام بطارية &lt;20%</th></tr></thead><tbody>
+      ${it.map((x) => `<tr style="cursor:pointer" onclick="openStation('${x.id}');tab('eval')"><td style="text-align:right;white-space:normal">${esc(x.name)}<div class="muted" style="font-size:11px">${esc(x.address || "")}</div></td><td>${f(x.kwp, 1)}</td>
+        <td class="${cls3(x.capRatio, .85, .7)}">${pc(x.capRatio)}</td><td>${f(x.yieldAvg, 2)}</td><td class="${cls3(x.yieldRatio, .85, .65)}">${pc(x.yieldRatio)}</td><td>${x.curtailPct ?? "—"}%</td><td>${x.coverPct ?? "—"}%</td><td class="${x.deepDays >= 3 ? "b" : ""}">${x.deepDays}</td></tr>`).join("")}
+      </tbody></table></div></div>`;
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+// ---- alerts ----
+async function showAlerts() {
+  showView("alertsView"); const body = $("alertsBody"); body.innerHTML = '<div class="card loading">جاري التحميل…</div>';
+  try {
+    const r = await api("alerts"); showErr("");
+    const open = r.alerts.filter((a) => !a.ended_at), closed = r.alerts.filter((a) => a.ended_at);
+    const row = (a) => `<div class="fd ${a.ended_at ? "good" : a.level}" style="cursor:pointer" onclick="openStation('${a.station_id}')">${a.ended_at ? "🟢" : LV[a.level] || "⚪"} <b>${esc(a.station_name || a.station_id)}</b> — ${esc(a.message)} ${a.device_sn ? `<span class="badge ltr">${esc(a.device_sn)}</span>` : ""}<div class="muted" style="font-size:11px">${fmtDT(Date.parse(a.started_at))}${a.ended_at ? " → عاد " + fmtDT(Date.parse(a.ended_at)) : ""}</div></div>`;
+    body.innerHTML = `<div class="card"><h2>التنبيهات المفتوحة (${open.length})</h2>${open.map(row).join("") || '<div class="muted">لا توجد تنبيهات مفتوحة 👍</div>'}</div>
+      <div class="card"><h3>انتهت خلال آخر 7 أيام (${closed.length})</h3>${closed.map(row).join("") || '<div class="muted">—</div>'}</div>
+      <div class="muted" style="padding:0 6px">يتم الفحص كل 30 دقيقة: أعطال Deye، الأنظمة المفصولة، والأجهزة المفصولة جزئياً. التنبيهات الجديدة تصل على التلغرام.</div>`;
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+// ---- devices ----
+async function loadDevices() {
+  const body = $("devBody"); body.innerHTML = '<div class="card loading">جاري التحميل…</div>';
+  try {
+    const j = await api(`devices?id=${stId(cur)}`); showErr("");
+    const latest = Object.fromEntries((j.latest || []).map((d) => [d.deviceSn, d]));
+    const pick = ["SOC", "BatteryVoltage", "BatteryTemperature", "TotalSolarPower", "TotalConsumptionPower", "DCVoltagePV1", "DCVoltagePV2", "ACOutputFrequencyR", "DCTemperature", "ACTemperature", "DailyActiveProduction", "DailyConsumption"];
+    body.innerHTML = `<div class="card">${j.devices.map((d) => {
+      const L = latest[d.deviceSn], items = L?.dataList || [];
+      const main = items.filter((i) => pick.includes(i.key));
+      const st = d.connectStatus === 1 || d.connectStatus === "1" ? "متصل" : (d.connectStatus === 0 || d.connectStatus === "0" ? "غير متصل" : esc(d.connectStatus ?? ""));
+      return `<div class="dev"><div class="row" style="justify-content:space-between"><b class="ltr">${esc(d.deviceSn)}</b>
+        <span class="badge">${esc(d.deviceType || "")}</span><span class="badge ${st === "غير متصل" ? "stale" : ""}">${st}</span></div>
+        <div class="grid">${main.map((i) => `<span>${esc(i.key)}: <b class="ltr">${esc(i.value)} ${esc(i.unit || "")}</b></span>`).join("")}</div>
+        ${items.length ? `<details><summary>كل القراءات (${items.length})</summary><div class="grid">${items.map((i) => `<span>${esc(i.key)}: <b class="ltr">${esc(i.value)} ${esc(i.unit || "")}</b></span>`).join("")}</div></details>` : '<div class="muted">لا توجد قراءات</div>'}</div>`;
+    }).join("") || '<div class="loading">لا توجد أجهزة</div>'}</div>`;
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+
+// ---------------- demo data (open with ?demo) ----------------
+function demoApi(path) {
+  const u = new URL("http://x/" + path), q = Object.fromEntries(u.searchParams);
+  const st = [{ id: 101, name: "نظام تجريبي 1", locationAddress: "Demo", installedCapacity: 15.6, generationPower: 9120, batterySOC: 78, connectionStatus: "NORMAL", lastUpdateTime: Date.now() / 1000 },
+    { id: 102, name: "نظام تجريبي 2", locationAddress: "Demo", installedCapacity: 24, generationPower: 15400, batterySOC: 64, connectionStatus: "NORMAL", lastUpdateTime: Date.now() / 1000 },
+    { id: 103, name: "نظام تجريبي 3", locationAddress: "Demo", installedCapacity: 60, generationPower: 0, batterySOC: null, connectionStatus: "ALL_OFFLINE", lastUpdateTime: Date.now() / 1000 - 9e5 }];
+  const curve = (date) => { let seed = [...date].reduce((a, c) => a + c.charCodeAt(0), 0); const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+    const rows = []; let soc = 55; for (let m = 0; m < 1440; m += 5) { const h = m / 60, pv = Math.max(0, Math.sin((h - 6) / 13 * Math.PI)) * 12 * (0.8 + rnd() * .2);
+      const load = 1.2 + (h > 18 && h < 23 ? 3 : 0) + (h > 11 && h < 15 ? 2.5 : 0) + rnd() * 1.5 + (rnd() > .985 ? 4 : 0);
+      const bat = Math.max(-5, Math.min(5, load - pv)); soc = Math.max(20, Math.min(100, soc - bat * 0.6)); const grid = soc <= 20 ? load - pv : 0;
+      rows.push({ hm: `${pad(Math.floor(h))}:${pad(m % 60)}`, date, load: +load.toFixed(2), pv: +pv.toFixed(2), grid: +grid.toFixed(2), buy: Math.max(0, grid), bat: +bat.toFixed(2), soc: Math.round(soc) }); } return rows; };
+  const P = (rs, k) => rs.reduce((b, x) => (x[k] > (b?.[k] ?? -1) ? x : b), null);
+  if (path.startsWith("stations")) return Promise.resolve({ stations: st });
+  if (path.startsWith("station?")) return Promise.resolve({ latest: { generationPower: 9120, consumptionPower: 3400, wirePower: 0, batteryPower: -4800, batterySOC: 78, lastUpdateTime: Date.now() / 1000 } });
+  if (q.id === "103") return Promise.resolve(path.startsWith("peaks") ? { from: q.from, to: q.to, days: [], summary: {} } : { date: q.date, rows: [] });
+  if (path.startsWith("day")) return Promise.resolve({ date: q.date, rows: curve(q.date) });
+  if (path.startsWith("devices")) return Promise.resolve({ devices: [{ deviceSn: "2305123456", deviceType: "INVERTER", connectStatus: 1 }, { deviceSn: "2781234567", deviceType: "COLLECTOR", connectStatus: 1 }],
+    latest: [{ deviceSn: "2305123456", dataList: [{ key: "SOC", value: 78, unit: "%" }, { key: "BatteryVoltage", value: 53.2, unit: "V" }, { key: "DCTemperature", value: 41, unit: "℃" }] }] });
+  if (path.startsWith("peaks")) { const days = []; for (let d = q.from; d <= q.to; d = addD(d, 1)) { const r = curve(d), pk = P(r, "load"), l = r.map((x) => x.load).sort((a, b) => a - b);
+      const sum = (k) => +(r.reduce((s, x) => s + Math.max(0, x[k]), 0) / 12).toFixed(1);
+      days.push({ date: d, peakLoad: { kw: pk.load, at: pk.hm }, peakPv: { kw: P(r, "pv").pv, at: P(r, "pv").hm }, peakImport: { kw: P(r, "buy").buy, at: "" }, baseLoad: Math.min(...r.slice(0, 60).map((x) => x.load)),
+        avgLoad: +(l.reduce((a, b) => a + b, 0) / l.length).toFixed(2), p95Load: l[Math.floor(l.length * .95)], loadKwh: sum("load"), pvKwh: sum("pv"), importKwh: sum("buy"), exportKwh: 0, socMin: Math.min(...r.map((x) => x.soc)), socMax: Math.max(...r.map((x) => x.soc)) }); }
+    const top = days.reduce((b, d) => (!b || d.peakLoad.kw > b.peakLoad.kw ? d : b), null);
+    return Promise.resolve({ from: q.from, to: q.to, days, summary: { maxPeakLoad: { kw: top.peakLoad.kw, date: top.date, at: top.peakLoad.at },
+      avgDailyPeak: +(days.reduce((s, d) => s + d.peakLoad.kw, 0) / days.length).toFixed(2), totalLoadKwh: +days.reduce((s, d) => s + d.loadKwh, 0).toFixed(1),
+      totalPvKwh: +days.reduce((s, d) => s + d.pvKwh, 0).toFixed(1), totalImportKwh: +days.reduce((s, d) => s + d.importKwh, 0).toFixed(1) } }); }
+}
+
+// boot
+(async () => {
+  await loadStations();
+  const m = location.hash.match(/s=(\d+)/); if (m && stations.length) openStation(m[1]);
+})();
+</script>
+</body>
+</html>
