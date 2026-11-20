@@ -16,6 +16,9 @@
 DEYE_APP_ID, DEYE_APP_SECRET, DEYE_EMAIL, DEYE_PASSWORD, DEYE_COMPANY_ID, DEYE_BASE_URL,
 ACCESS_CODE, STATION_TZ, SUPABASE_URL, SUPABASE_KEY, DB_SECRET, CRON_SECRET, TELEGRAM_TOKEN (اختياري)
 
+## البنية
+كل الـ API عبر دالة واحدة `api/main.js` (حد Hobby = 12 دالة) والمنطق في `lib/`.
+
 ## المهام المجدولة
 - Vercel Cron: `/api/cron/sync` يومياً
 - Supabase pg_cron: `/api/cron/alerts` كل 30 دقيقة، `/api/cron/backfill` لملء التاريخ
