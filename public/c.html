@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>نظام الطاقة الشمسية — iCOOL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{--blue:#0066A7;--orange:#F1471E;--ink:#14222f;--muted:#5b6977;--line:#d6dee7;--panel:#f6f9fc}
+*{box-sizing:border-box}body{margin:0;font-family:Cairo,system-ui,sans-serif;background:#eef3f8;color:var(--ink)}
+header{background:#fff;border-bottom:3px solid var(--blue);padding:10px 14px;display:flex;align-items:center;gap:10px}
+header img{height:46px}header .t b{display:block;color:var(--blue);font-size:15px}header .t span{font-size:11px;color:var(--orange);font-weight:700}
+main{max-width:760px;margin:auto;padding:12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+h2{margin:0 0 4px;font-size:18px;color:var(--blue)}h3{margin:0 0 8px;font-size:15px;color:var(--blue)}
+.muted{color:var(--muted);font-size:13px}.ltr{direction:ltr;unicode-bidi:embed}
+.flow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fb{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center}
+.fb .i{font-size:26px}.fb .v{font-size:24px;font-weight:800;color:var(--blue)}.fb .l{font-size:12px;color:var(--muted)}
+.fb.pv .v{color:#e08a00}.fb.bat .v{color:#1a9b5c}
+.kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px}.kv:last-child{border:0}
+.btn{display:inline-block;background:var(--orange);color:#fff;text-decoration:none;font-weight:700;padding:10px 16px;border-radius:10px}
+.err{background:#fdecea;color:#c0392b;border-radius:12px;padding:16px;text-align:center;font-weight:700}
+footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
+</style>
+</head>
+<body>
+<header><img src="logo-full.png" alt="iCOOL"><div class="t"><b>نظام الطاقة الشمسية</b><span>HVAC • SOLAR • MEP</span></div></header>
+<main id="m"><div class="card muted" style="text-align:center">جاري التحميل…</div></main>
+<footer>iCOOL Trading &amp; Contracting — COOL YOUR LIFE<br>للدعم: <a class="ltr" href="https://wa.me/9613715512">+961 3 715 512</a></footer>
+<script>
+const P = new URLSearchParams(location.search), S = P.get("s"), T = P.get("t");
+const $ = (id) => document.getElementById(id);
+const f = (v, d = 1) => (v === null || v === undefined || isNaN(v)) ? "—" : Number(v).toLocaleString("en-US", { maximumFractionDigits: d });
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const AR = ["كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران", "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول"];
+async function api(fn, extra = "") { const r = await fetch(`/api/portal?s=${encodeURIComponent(S)}&t=${encodeURIComponent(T)}&fn=${fn}${extra}`); const j = await r.json(); if (!j.ok) throw new Error(j.error || "خطأ"); return j; }
+let info = null, charts = {};
+function chart(id, cfg) { if (charts[id]) charts[id].destroy(); charts[id] = new Chart($(id), cfg); }
+async function init() {
+  try {
+    info = await api("info");
+    const st = info.station, now = new Date(); const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const month = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, "0")}`;
+    $("m").innerHTML = `<div class="card"><h2>${esc(st.name)}</h2><div class="muted">${f(st.kwp, 2)} kWp</div></div>
+      <div class="card"><h3>الآن</h3><div class="flow" id="now"><div class="muted">…</div></div><div class="muted" id="upd" style="margin-top:6px"></div></div>
+      <div class="card"><h3>اليوم</h3><canvas id="dc" height="200"></canvas></div>
+      ${(info.forecast || []).length ? `<div class="card"><h3>توقع الإنتاج</h3>${info.forecast.map((x) => `<div class="kv"><span>${x.date}</span><b>${f(x.kwh, 0)} kWh ${x.rain > 1 ? "🌧️" : x.poa < 3 ? "☁️" : "☀️"}</b></div>`).join("")}</div>` : ""}
+      <div class="card"><h3>الإنتاج الشهري</h3><canvas id="mc" height="200"></canvas><div id="msum" style="margin-top:8px"></div></div>
+      <div class="card" style="text-align:center"><a class="btn" href="/api/report?id=${encodeURIComponent(S)}&t=${encodeURIComponent(T)}&month=${month}&price=${info.price}" target="_blank">📄 تقرير شهر ${AR[lm.getMonth()]}</a></div>`;
+    loadNow(); loadDay(); loadMonths(); setInterval(loadNow, 60000);
+  } catch (e) { $("m").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+async function loadNow() {
+  try {
+    const L = (await api("now")).latest, kw = (v) => (v === null || v === undefined ? null : Number(v) / 1000);
+    const grid = kw(L.wirePower ?? L.gridPower), bat = kw(L.batteryPower);
+    $("now").innerHTML = `<div class="fb pv"><div class="i">☀️</div><div class="v">${f(kw(L.generationPower), 2)}</div><div class="l">kW إنتاج الألواح</div></div>
+      <div class="fb"><div class="i">🏠</div><div class="v">${f(kw(L.consumptionPower), 2)}</div><div class="l">kW استهلاك البيت</div></div>
+      <div class="fb bat"><div class="i">🔋</div><div class="v">${f(L.batterySOC, 0)}%</div><div class="l">${bat === null ? "البطارية" : bat < -0.05 ? `تشحن ${f(-bat, 2)} kW` : bat > 0.05 ? `تفرّغ ${f(bat, 2)} kW` : "البطارية"}</div></div>
+      <div class="fb"><div class="i">⚡</div><div class="v">${f(grid === null ? null : Math.abs(grid), 2)}</div><div class="l">kW ${grid > 0.05 ? "من الشبكة/المولد" : grid < -0.05 ? "إلى الشبكة" : "الشبكة/المولد"}</div></div>`;
+    const ts = Number(L.lastUpdateTime); $("upd").textContent = ts ? "آخر تحديث " + new Date(ts * (ts > 1e11 ? 1 : 1000)).toLocaleString("en-GB", { hour12: false }) : "";
+  } catch (e) {}
+}
+async function loadDay() {
+  try {
+    const r = (await api("day")).rows;
+    chart("dc", { type: "line", data: { labels: r.map((x) => x.hm), datasets: [
+      { label: "إنتاج kW", data: r.map((x) => x.pv), borderColor: "#e08a00", backgroundColor: "#e08a0022", fill: true, pointRadius: 0, tension: .3 },
+      { label: "استهلاك kW", data: r.map((x) => x.load), borderColor: "#0066A7", pointRadius: 0, tension: .3 }] },
+      options: { plugins: { legend: { labels: { font: { family: "Cairo" } } } }, scales: { x: { ticks: { maxTicksLimit: 8 } } } } });
+  } catch (e) {}
+}
+async function loadMonths() {
+  try {
+    const ms = (await api("month")).months.slice(-12);
+    chart("mc", { type: "bar", data: { labels: ms.map((x) => AR[Number(x.m.slice(5)) - 1].split(" ")[0] + " " + x.m.slice(2, 4)), datasets: [{ label: "kWh", data: ms.map((x) => x.pv), backgroundColor: "#0066A7" }] }, options: { plugins: { legend: { display: false } } } });
+    const tot = ms.reduce((s, x) => s + x.pv, 0);
+    $("msum").innerHTML = `<div class="kv"><span>إنتاج آخر ${ms.length} شهر</span><b>${f(tot, 0)} kWh</b></div><div class="kv"><span>التوفير التقريبي</span><b>$${f(tot * (info.price || 0.3), 0)}</b></div>`;
+  } catch (e) {}
+}
+if (window.Chart) { Chart.defaults.font.family = "Cairo"; }
+init();
+</script>
+</body>
+</html>

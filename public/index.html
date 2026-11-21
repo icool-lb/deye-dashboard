@@ -78,6 +78,12 @@ td.g{color:#1a9b5c;font-weight:700}td.w{color:#c97a00;font-weight:700}td.b{color
 .nol button{font-size:12px;padding:6px 10px}
 .leaflet-popup-content{font-family:Cairo,system-ui,sans-serif;direction:rtl;text-align:right;margin:10px 12px}
 .pp b{color:var(--blue)}.pp .kv{font-size:12px}.pp button{font-size:12px;padding:6px 10px;margin-top:6px}
+.fl{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}.fl label{font-size:12px;color:var(--muted);display:block}.fl input,.fl select,.fl textarea{width:100%}
+.tk{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}.tk.done{opacity:.6}.tk .h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.st-open{background:#fdecea;color:#c0392b}.st-in_progress{background:#fff5e6;color:#c97a00}.st-done{background:#eaf7ef;color:#1a9b5c}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px}.thumbs a{display:block;width:92px;font-size:11px;text-align:center;color:var(--ink);text-decoration:none;word-break:break-all}.thumbs img{width:92px;height:92px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.ctl select,.ctl input{min-width:0}
+table.tou input{width:72px;padding:4px}table.tou td{padding:3px}
 footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
 </style>
 </head>
@@ -99,7 +105,7 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
 
   <!-- stations -->
   <section id="listView">
-    <div class="topnav"><button onclick="showMap()">🗺️ خريطة الأنظمة</button><button onclick="showFleet()">ترتيب أداء الأنظمة</button><button class="or" onclick="showAlerts()">التنبيهات</button></div>
+    <div class="topnav"><button onclick="showMap()">🗺️ الخريطة</button><button onclick="showFleet()">ترتيب الأداء</button><button class="or" onclick="showAlerts()">التنبيهات</button><button onclick="showTickets()">🎫 التذاكر</button><button onclick="showSoiling()">🧽 صحة الألواح</button><button onclick="showAudit()">⚙️ تدقيق الإعدادات</button><button class="ghost" onclick="showCtlLog()">📜 سجل الأوامر</button></div>
     <div class="card">
       <div class="row">
         <input id="q" placeholder="ابحث باسم النظام أو المنطقة…" oninput="renderList()" style="flex:1;min-width:180px">
@@ -124,6 +130,10 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
   <!-- station detail -->
   <section id="fleetView" class="hide"><div id="fleetBody"></div></section>
   <section id="alertsView" class="hide"><div id="alertsBody"></div></section>
+  <section id="ticketsView" class="hide"><div id="ticketsBody"></div></section>
+  <section id="soilingView" class="hide"><div id="soilingBody"></div></section>
+  <section id="auditView" class="hide"><div id="auditBody"></div></section>
+  <section id="ctlView" class="hide"><div id="ctlBody"></div></section>
   <section id="mapView" class="hide">
     <div class="card" style="padding:12px">
       <h2 style="margin-bottom:4px">خريطة أنظمة iCOOL</h2>
@@ -147,6 +157,9 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
       <button data-t="live" onclick="tab('live')">الآن</button>
       <button data-t="day" onclick="tab('day')">منحنى اليوم</button>
       <button data-t="eval" onclick="tab('eval')">تقييم الأداء</button>
+      <button data-t="health" onclick="tab('health')">صحة الألواح</button>
+      <button data-t="settings" onclick="tab('settings')">الإعدادات والتحكم</button>
+      <button data-t="file" onclick="tab('file')">ملف النظام</button>
       <button data-t="devices" onclick="tab('devices')">الأجهزة</button>
       <button data-t="report" onclick="tab('report')">تقرير شهري</button>
     </div>
@@ -182,6 +195,9 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
 
     <div id="t-devices" class="hide"><div id="devBody"></div></div>
     <div id="t-eval" class="hide"><div class="card row"><select id="evDays" style="width:auto" onchange="loadEval()"><option value="14">آخر 14 يوم</option><option value="30" selected>آخر 30 يوم</option><option value="60">آخر 60 يوم</option></select><span class="muted">يحلل الألواح والـ Strings والإنفرتر والبطارية</span></div><div id="evalBody"></div></div>
+    <div id="t-health" class="hide"><div id="healthBody"></div></div>
+    <div id="t-settings" class="hide"><div id="setBody"></div></div>
+    <div id="t-file" class="hide"><div id="fileBody"></div></div>
     <div id="t-report" class="hide"><div class="card"><h3>التقرير الشهري للزبون</h3><div class="row"><input type="month" id="repMonth" style="flex:1"><input type="number" id="repPrice" value="0.30" step="0.01" style="width:110px" title="سعر الكيلوواط $"><button onclick="openReport()">فتح التقرير</button></div><div class="muted" style="margin-top:6px">التقرير يفتح بصفحة جديدة: اضغط "حفظ PDF / طباعة" ثم شاركه على الواتساب. السعر = كلفة الكيلوواط من المولد/الشبكة لحساب التوفير.</div></div></div>
   </section>
 </main>
@@ -250,12 +266,12 @@ function renderList() {
       <div class="muted ${on ? "" : "stale"}" style="font-size:11px;margin-top:4px">${on ? (part ? "متصل جزئياً (جهاز مفصول) · " : "") : "غير متصل · "}${upd ? "آخر تحديث " + upd : ""}</div></div>`;
   }).join("") || '<div class="loading">لا توجد أنظمة</div>';
 }
-function showList() { ["fleetView", "alertsView", "mapView"].forEach((x) => $(x).classList.add("hide")); $("detail").classList.add("hide"); $("listView").classList.remove("hide"); $("backBtn").classList.add("hide"); history.replaceState(null, "", location.pathname + location.search); }
+function showList() { ["fleetView", "alertsView", "mapView", "ticketsView", "soilingView", "auditView", "ctlView"].forEach((x) => $(x).classList.add("hide")); $("detail").classList.add("hide"); $("listView").classList.remove("hide"); $("backBtn").classList.add("hide"); history.replaceState(null, "", location.pathname + location.search); }
 
 // ---------------- detail ----------------
 function openStation(id) {
   cur = stations.find((s) => String(stId(s)) === String(id)) || { id };
-  ["listView", "fleetView", "alertsView", "mapView"].forEach((x) => $(x).classList.add("hide")); $("detail").classList.remove("hide"); $("backBtn").classList.remove("hide");
+  ["listView", "fleetView", "alertsView", "mapView", "ticketsView", "soilingView", "auditView", "ctlView"].forEach((x) => $(x).classList.add("hide")); $("detail").classList.remove("hide"); $("backBtn").classList.remove("hide");
   { const d = new Date(); d.setDate(0); $("repMonth").value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; }
   $("stName").textContent = stName(cur);
   $("stMeta").innerHTML = [esc(cur.locationAddress), cur.installedCapacity ? `<span class="ltr">${f(cur.installedCapacity, 2)} kWp</span>` : "", `ID ${esc(id)}`, isOnline(cur) ? "" : `<span class="stale">غير متصل منذ <span class="ltr">${fmtDT(cur.lastUpdateTime)}</span></span>`].filter(Boolean).join(" · ");
@@ -267,8 +283,8 @@ function openStation(id) {
 }
 function tab(t) {
   document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === t));
-  ["peaks", "live", "day", "devices", "eval", "report"].forEach((x) => $("t-" + x).classList.toggle("hide", x !== t));
-  ({ peaks: loadPeaks, live: loadLive, day: loadDay, devices: loadDevices, eval: loadEval, report: () => {} })[t]();
+  ["peaks", "live", "day", "devices", "eval", "report", "health", "settings", "file"].forEach((x) => $("t-" + x).classList.toggle("hide", x !== t));
+  ({ peaks: loadPeaks, live: loadLive, day: loadDay, devices: loadDevices, eval: loadEval, report: () => {}, health: loadHealth, settings: loadSettingsTab, file: loadFile })[t]();
 }
 document.querySelectorAll("#ranges button").forEach((b) => b.onclick = () => {
   document.querySelectorAll("#ranges button").forEach((x) => x.classList.toggle("on", x === b));
@@ -430,7 +446,7 @@ async function loadEval() {
 }
 function openReport() { window.open(`/api/report?id=${stId(cur)}&month=${$("repMonth").value}&price=${$("repPrice").value}&k=${encodeURIComponent(localStorage.getItem("deyeCode") || "")}`, "_blank"); }
 // ---- fleet ranking ----
-function showView(v) { ["listView", "detail", "fleetView", "alertsView", "mapView"].forEach((x) => $(x).classList.toggle("hide", x !== v)); $("backBtn").classList.toggle("hide", v === "listView"); window.scrollTo(0, 0); }
+function showView(v) { ["listView", "detail", "fleetView", "alertsView", "mapView", "ticketsView", "soilingView", "auditView", "ctlView"].forEach((x) => $(x).classList.toggle("hide", x !== v)); $("backBtn").classList.toggle("hide", v === "listView"); window.scrollTo(0, 0); }
 async function showFleet() {
   showView("fleetView"); const body = $("fleetBody"); body.innerHTML = '<div class="card loading">جاري تحليل كل الأنظمة المتصلة لآخر 7 أيام… (قد يأخذ حتى دقيقة)</div>';
   try {
@@ -452,7 +468,7 @@ async function showAlerts() {
   try {
     const r = await api("alerts"); showErr("");
     const open = r.alerts.filter((a) => !a.ended_at), closed = r.alerts.filter((a) => a.ended_at);
-    const row = (a) => `<div class="fd ${a.ended_at ? "good" : a.level}" style="cursor:pointer" onclick="openStation('${a.station_id}')">${a.ended_at ? "🟢" : LV[a.level] || "⚪"} <b>${esc(a.station_name || a.station_id)}</b> — ${esc(a.message)} ${a.device_sn ? `<span class="badge ltr">${esc(a.device_sn)}</span>` : ""}<div class="muted" style="font-size:11px">${fmtDT(Date.parse(a.started_at))}${a.ended_at ? " → عاد " + fmtDT(Date.parse(a.ended_at)) : ""}</div></div>`;
+    const row = (a) => `<div class="fd ${a.ended_at ? "good" : a.level}" style="cursor:pointer" onclick="openStation('${a.station_id}')">${a.ended_at ? "🟢" : LV[a.level] || "⚪"} <b>${esc(a.station_name || a.station_id)}</b> — ${esc(a.message)} ${a.device_sn ? `<span class="badge ltr">${esc(a.device_sn)}</span>` : ""}<div class="muted" style="font-size:11px">${fmtDT(Date.parse(a.started_at))}${a.ended_at ? " → عاد " + fmtDT(Date.parse(a.ended_at)) : ""}${a.ended_at ? "" : ` <button class="ghost" style="font-size:11px;padding:3px 8px" onclick="event.stopPropagation();ticketFromAlert(${a.id},${a.station_id},'${esc(String(a.message).replace(/'/g, ""))}')">🎫 تذكرة</button>`}</div></div>`;
     body.innerHTML = `<div class="card"><h2>التنبيهات المفتوحة (${open.length})</h2>${open.map(row).join("") || '<div class="muted">لا توجد تنبيهات مفتوحة 👍</div>'}</div>
       <div class="card"><h3>انتهت خلال آخر 7 أيام (${closed.length})</h3>${closed.map(row).join("") || '<div class="muted">—</div>'}</div>
       <div class="muted" style="padding:0 6px">يتم الفحص كل 30 دقيقة: أعطال Deye، الأنظمة المفصولة، والأجهزة المفصولة جزئياً. التنبيهات الجديدة تصل على التلغرام.</div>`;
@@ -559,6 +575,274 @@ async function savePin(id, lat, lng) {
 async function clearPin(id) {
   try { if (DEMO) delete locs[id]; else locs = (await api(`map?set=${encodeURIComponent(id)}&clear=1`)).locs; cancelPin(); drawMap(false); renderNoLoc(); }
   catch (e) { showErr(e.message); }
+}
+
+
+// ================= pro features =================
+async function apiPost(path, body) {
+  if (DEMO) throw new Error("غير متاح في الوضع التجريبي");
+  const r = await fetch("/api/" + path, { method: "POST", headers: { "content-type": "application/json", "x-access-code": localStorage.getItem("deyeCode") || "" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ ok: false, error: "استجابة غير صالحة" }));
+  if (!j.ok) throw new Error(j.error || "خطأ");
+  return j;
+}
+const fdList = (F) => (F || []).map((x) => `<div class="fd ${x.lvl}">${LV[x.lvl] || ""} ${esc(x.t)}</div>`).join("") || '<div class="fd good">🟢 لا توجد ملاحظات</div>';
+const codeQ = () => "k=" + encodeURIComponent(localStorage.getItem("deyeCode") || "");
+const pct0 = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
+async function runJob(job, btn) {
+  btn.disabled = true; const t = btn.textContent; btn.textContent = "جاري التحديث… (حتى 5 دقائق)";
+  try { const r = await fetch("/api/cron/" + job, { headers: { "x-access-code": localStorage.getItem("deyeCode") || "" } }); const j = await r.json(); if (!j.ok) throw new Error(j.error || "خطأ"); return j; }
+  finally { btn.disabled = false; btn.textContent = t; }
+}
+
+// ---------- panel health (station) ----------
+async function loadHealth() {
+  const body = $("healthBody"); body.innerHTML = '<div class="card loading">جاري مقارنة الإنتاج بالإشعاع الشمسي الفعلي لآخر سنتين…</div>';
+  try {
+    const h = (await api(`health?id=${stId(cur)}`)).health; showErr("");
+    if (!h.ok) { body.innerHTML = `<div class="card fd info">${esc(h.reason)}</div>`; return; }
+    const fc = (h.forecast || []).map((x) => `<div class="tile"><div class="l">توقع ${x.date}</div><div class="v">${f(x.kwh, 0)} <small>kWh</small></div><div class="s">إشعاع ${f(x.poa, 1)} kWh/m²${x.rain > 1 ? ` · مطر ${f(x.rain, 0)}mm` : ""}</div></div>`).join("");
+    body.innerHTML = `<div class="card"><h3>صحة الألواح</h3>${fdList(h.findings)}</div>
+      <div class="card"><div class="tiles">
+        <div class="tile"><div class="l">نسبة الأداء الآن (PR)</div><div class="v">${pct0(h.prNow)}</div><div class="s">الطبيعي 75–85%</div></div>
+        <div class="tile"><div class="l">أفضل PR آخر 6 أشهر</div><div class="v">${pct0(h.prBest)}</div><div class="s">${h.bestAt || ""}</div></div>
+        <div class="tile"><div class="l">خسارة الاتساخ</div><div class="v">${h.soilingPct ?? "—"} <small>%</small></div><div class="s">~${f(h.lossKwhMonth, 0)} kWh بالشهر</div></div>
+        <div class="tile"><div class="l">التغير عن السنة الماضية</div><div class="v">${h.degradationPct === null ? "—" : (h.degradationPct > 0 ? "+" : "") + h.degradationPct + "%"}</div><div class="s">PR ${pct0(h.pr0)} → ${pct0(h.pr1)}</div></div>
+        <div class="tile"><div class="l">آخر مطر قوي</div><div class="v" style="font-size:16px">${h.lastRain || "—"}</div></div>
+        ${fc}
+      </div></div>
+      <div class="card"><h3>الأداء الشهري</h3><canvas id="hChart" height="220"></canvas><div class="muted" style="font-size:12px">الأعمدة: إنتاج الشهر kWh · الخط: نسبة الأداء PR (أعلى 10% من الأيام، لاستبعاد أيام البطارية الممتلئة).</div></div>
+      ${(h.rains || []).length ? `<div class="card"><h3>تأثير المطر</h3><div class="tw"><table><thead><tr><th>التاريخ</th><th>المطر mm</th><th>تغير الأداء بعده</th></tr></thead><tbody>${h.rains.map((r) => `<tr><td class="ltr">${r.date}</td><td>${r.mm}</td><td class="${r.gain >= 5 ? "w" : ""}">${r.gain > 0 ? "+" : ""}${r.gain}%</td></tr>`).join("")}</tbody></table></div></div>` : ""}
+      <div class="muted" style="padding:0 6px;font-size:12px">الإشعاع من Open-Meteo لموقع النظام${h.ll?.approx ? " (تقريبي — حدّد الموقع من الخريطة)" : ""}، على ميل 25° جنوب. الفترة ${h.from} → ${h.to} (${h.days} يوم).</div>`;
+    const mm = h.monthly || [];
+    chart("hChart", { data: { labels: mm.map((x) => x.m), datasets: [
+      { type: "bar", label: "kWh", data: mm.map((x) => x.kwh), backgroundColor: "#0066A755", yAxisID: "y" },
+      { type: "line", label: "PR", data: mm.map((x) => x.pr === null ? null : Math.round(x.pr * 100)), borderColor: "#F1471E", tension: .3, yAxisID: "y1" }] },
+      options: { responsive: true, scales: { y: { position: "left" }, y1: { position: "right", min: 0, max: 110, grid: { drawOnChartArea: false } } } } });
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+
+// ---------- settings & control (station) ----------
+const WMN = { SELLING_FIRST: "بيع للشبكة أولاً", ZERO_EXPORT_TO_LOAD: "Zero Export للحمل", ZERO_EXPORT_TO_CT: "Zero Export مع CT" };
+let lastSet = null;
+function loadSettingsTab() {
+  $("setBody").innerHTML = `<div class="card"><h3>إعدادات الإنفرترات</h3><div class="muted" style="font-size:13px">القراءة تتم مباشرة من الإنفرتر (10–25 ثانية) ولا تغيّر شيئاً.</div><button style="margin-top:8px" onclick="readSet(this)">قراءة الإعدادات الآن</button></div><div id="setRes"></div><div id="smartBox"></div><div id="ctlLogBox"></div>`;
+  loadSmart(); loadStationLog();
+}
+async function readSet(btn) {
+  btn.disabled = true; $("setRes").innerHTML = '<div class="card loading">جاري القراءة من الإنفرترات…</div>';
+  try { lastSet = await api(`settings?id=${stId(cur)}`); renderSet(); showErr(""); }
+  catch (e) { $("setRes").innerHTML = ""; showErr(e.message); } finally { btn.disabled = false; }
+}
+function renderSet() {
+  const r = lastSet, invs = r.inverters, multi = invs.length > 1;
+  const yes = (v) => (v === "on" ? "✅ مفعل" : v === "off" ? "⛔ مطفأ" : esc(v ?? "—"));
+  $("setRes").innerHTML = `<div class="card"><h3>نتيجة التدقيق</h3>${fdList(r.audit)}</div>` + invs.map((inv, k) => {
+    const s = inv.settings, info = inv.info || {};
+    if (!s) return `<div class="card"><h3 class="ltr">${esc(inv.sn)}</h3><div class="fd warn">${esc(inv.error || "تعذرت القراءة")}</div></div>`;
+    const tou = s.timeUseSettingItems || [];
+    return `<div class="card"><h3>الإنفرتر <span class="ltr">${esc(inv.sn)}</span>${info.RatedPower ? ` · ${f(info.RatedPower / 1000, 1)} kW` : ""}${info.BatteryRatedCapacity ? ` · بطارية ${f(info.BatteryRatedCapacity, 0)}Ah` : ""}</h3>
+      <div class="tw"><table><tbody>
+        <tr><td>وضع العمل</td><td>${esc(WMN[s.workMode] || s.workMode)}</td></tr>
+        <tr><td>البيع للشبكة</td><td>${yes(s.solarSellAction)}</td></tr>
+        <tr><td>الشحن من الشبكة/المولد</td><td>${yes(s.gridChargeAction)} · ${f(s.gridChargeAmpere, 0)}A</td></tr>
+        <tr><td>تيار الشحن / التفريغ الأقصى</td><td class="ltr">${f(s.maxChargeCurrent, 0)}A / ${f(s.maxDischargeCurrent, 0)}A</td></tr>
+        <tr><td>أقصى بيع / أقصى ألواح</td><td class="ltr">${f(s.maxSellPower, 0)}W / ${f(s.maxSolarPower, 0)}W</td></tr>
+        <tr><td>Zero Export Power</td><td class="ltr">${f(s.zeroExportPower, 0)}W</td></tr>
+        <tr><td>Time of Use</td><td>${yes(s.touAction)}</td></tr>
+      </tbody></table></div>
+      <h3 style="margin-top:10px">جدول الوقت (TOU)</h3>
+      <div class="tw"><table class="tou" id="tou${k}"><thead><tr><th>من</th><th>القدرة W</th><th>SOC %</th><th>شحن شبكة</th><th>شحن مولد</th></tr></thead><tbody>
+        ${tou.map((x, i) => `<tr><td><input value="${esc(x.time)}" data-f="time" class="ltr"></td><td><input type="number" value="${x.power}" data-f="power"></td><td><input type="number" value="${x.soc}" data-f="soc"></td><td><input type="checkbox" data-f="enableGridCharge" ${x.enableGridCharge ? "checked" : ""}></td><td><input type="checkbox" data-f="enableGeneration" ${x.enableGeneration ? "checked" : ""}><input type="hidden" data-f="voltage" value="${x.voltage}"></td></tr>`).join("")}
+      </tbody></table></div>
+      <button class="or" style="margin-top:6px" onclick="saveTou(${k})">حفظ جدول الوقت على الإنفرتر${multi ? "ات" : ""}</button>
+      <h3 style="margin-top:14px">تحكم</h3>
+      <div class="ctl"><select id="cc${k}" onchange="ctlHint(${k})">
+        <option value="workMode">وضع العمل</option><option value="energyPattern">أولوية الطاقة</option><option value="solarSell">البيع للشبكة</option>
+        <option value="gridCharge">الشحن من الشبكة</option><option value="genCharge">الشحن من المولد</option><option value="touSwitch">Time of Use</option>
+        <option value="maxCharge">تيار الشحن الأقصى (A)</option><option value="maxDischarge">تيار التفريغ الأقصى (A)</option><option value="gridChargeAmp">تيار الشحن من الشبكة (A)</option>
+        <option value="battLow">Batt Low (%)</option><option value="maxSell">أقصى قدرة بيع (W)</option><option value="maxSolar">أقصى قدرة ألواح (W)</option><option value="zeroExport">Zero Export Power (W)</option>
+      </select><span id="cv${k}"></span><button class="or" onclick="sendCtl(${k})">إرسال</button></div>
+      ${multi ? `<label style="font-size:13px;display:block;margin-top:6px"><input type="checkbox" id="call${k}" checked> طبّق على كل إنفرترات النظام (${invs.length}) — مهم للتوازي</label>` : ""}
+      <div id="cr${k}"></div></div>`;
+  }).join("");
+  invs.forEach((inv, k) => inv.settings && ctlHint(k));
+}
+const CTL_OPTS = { workMode: [["SELLING_FIRST", "بيع للشبكة أولاً"], ["ZERO_EXPORT_TO_LOAD", "Zero Export للحمل"], ["ZERO_EXPORT_TO_CT", "Zero Export مع CT"]], energyPattern: [["BATTERY_FIRST", "البطارية أولاً"], ["LOAD_FIRST", "الحمل أولاً"]] };
+const CTL_BOOL = ["solarSell", "gridCharge", "genCharge", "touSwitch"];
+const CTL_CUR = (s, c) => ({ workMode: s.workMode, solarSell: s.solarSellAction, gridCharge: s.gridChargeAction, touSwitch: s.touAction, maxCharge: s.maxChargeCurrent, maxDischarge: s.maxDischargeCurrent, gridChargeAmp: s.gridChargeAmpere, maxSell: s.maxSellPower, maxSolar: s.maxSolarPower, zeroExport: s.zeroExportPower })[c];
+function ctlHint(k) {
+  const c = $("cc" + k).value, s = lastSet.inverters[k].settings || {}, cv = CTL_CUR(s, c);
+  $("cv" + k).innerHTML = CTL_OPTS[c] ? `<select id="cvv${k}">${CTL_OPTS[c].map(([v, t]) => `<option value="${v}" ${v === cv ? "selected" : ""}>${t}</option>`).join("")}</select>`
+    : CTL_BOOL.includes(c) ? `<select id="cvv${k}"><option value="true" ${cv === "on" ? "selected" : ""}>تفعيل</option><option value="false" ${cv === "off" ? "selected" : ""}>إطفاء</option></select>`
+    : `<input id="cvv${k}" type="number" style="width:110px" value="${cv ?? ""}" placeholder="القيمة">`;
+}
+function targetSns(k) { const all = $("call" + k)?.checked; return all ? lastSet.inverters.filter((i) => i.settings).map((i) => i.sn) : [lastSet.inverters[k].sn]; }
+async function doCtl(k, cmd, value, label, before) {
+  const sns = targetSns(k);
+  if (!confirm(`تأكيد إرسال أمر للإنفرتر:\n\n${label}\nإلى: ${sns.join("، ")}\n\nسيتم تغيير الإعداد فعلياً على الإنفرتر.`)) return;
+  $("cr" + k).innerHTML = '<div class="fd info">⏳ جاري الإرسال ومتابعة التنفيذ (حتى 30 ثانية لكل إنفرتر)…</div>';
+  try {
+    const r = await apiPost("control", { cmd, sns, value, stationId: stId(cur), before, confirm: "YES" });
+    $("cr" + k).innerHTML = r.results.map((x) => `<div class="fd ${x.ok ? "good" : "bad"}">${x.ok ? "✅ تم التنفيذ" : "❌ " + esc(x.error || x.status)} — <span class="ltr">${esc(x.sn)}</span> ${x.orderId ? `<span class="muted ltr">#${esc(x.orderId)}</span>` : ""}</div>`).join("") + '<div class="muted" style="font-size:12px">اضغط "قراءة الإعدادات الآن" للتأكد من القيم الجديدة.</div>';
+    loadStationLog();
+  } catch (e) { $("cr" + k).innerHTML = `<div class="fd bad">❌ ${esc(e.message)}</div>`; }
+}
+function sendCtl(k) {
+  const c = $("cc" + k), v = $("cvv" + k).value; if (v === "") return showErr("أدخل القيمة");
+  const s = lastSet.inverters[k].settings || {};
+  const vt = $("cvv" + k).tagName === "SELECT" ? $("cvv" + k).selectedOptions[0].text : v;
+  doCtl(k, c.value, v, `${c.selectedOptions[0].text}: ${CTL_CUR(s, c.value) ?? "?"} ← ${vt}`, { [c.value]: CTL_CUR(s, c.value) ?? null });
+}
+function saveTou(k) {
+  const rows = [...document.querySelectorAll(`#tou${k} tbody tr`)].map((tr) => { const o = {}; tr.querySelectorAll("[data-f]").forEach((i) => o[i.dataset.f] = i.type === "checkbox" ? i.checked : i.value); return o; });
+  const before = lastSet.inverters[k].settings.timeUseSettingItems;
+  doCtl(k, "touUpdate", rows, "جدول الوقت (TOU):\n" + rows.map((r) => `${r.time} → SOC ${r.soc}%${r.enableGridCharge ? " + شحن شبكة" : ""}${r.enableGeneration ? " + شحن مولد" : ""}`).join("\n"), { tou: before });
+}
+async function loadSmart() {
+  const box = $("smartBox"); box.innerHTML = '<div class="card loading">Smart SoC…</div>';
+  try {
+    const r = await api(`smartsoc?id=${stId(cur)}`), c = r.config, p = r.plan || {};
+    box.innerHTML = `<div class="card"><h3>🔋 Smart SoC — احتياط ذكي للبطارية</h3>
+      <div class="muted" style="font-size:13px">كل يوم الساعة 6 مساءً: إذا بكرا مشمس ينزل الاحتياط للحد الأدنى (استعمال أكثر للبطارية بالليل)، وإذا غائم يرفعه للحد الأعلى. يعدّل SOC بكل فترات جدول الوقت على كل الإنفرترات، ويحتاج Time of Use مفعل.</div>
+      <div class="row" style="margin-top:8px"><label><input type="checkbox" id="ssOn" ${c.enabled ? "checked" : ""}> مفعل</label>
+        <span>الأدنى</span><input type="number" id="ssMin" value="${c.min}" style="width:70px"><span>الأعلى</span><input type="number" id="ssMax" value="${c.max}" style="width:70px"><button onclick="saveSmart()">حفظ</button></div>
+      ${p.target !== undefined ? `<div class="fd info" style="margin-top:8px">بكرا ${esc(p.date)}: توقع ${f(p.forecastKwh, 0)} kWh مقابل استهلاك يومي ${f(p.loadKwh, 0)} kWh → الاحتياط المقترح <b>${p.target}%</b></div>` : p.skip ? `<div class="fd warn" style="margin-top:8px">${esc(p.skip)}</div>` : ""}
+      ${r.last?.entry ? `<div class="muted" style="font-size:12px">آخر تشغيل ${fmtDT(Date.parse(r.last.at))}: ${r.last.entry.changed ? `تغيّر ${r.last.entry.current}% ← ${r.last.entry.target}%` : esc(r.last.entry.skip || r.last.entry.error || "بدون تغيير")}</div>` : ""}</div>`;
+  } catch (e) { box.innerHTML = `<div class="card fd warn">${esc(e.message)}</div>`; }
+}
+async function saveSmart() {
+  try { await apiPost("smartsoc", { id: stId(cur), enabled: $("ssOn").checked, min: $("ssMin").value, max: $("ssMax").value }); loadSmart(); showErr(""); } catch (e) { showErr(e.message); }
+}
+const ctlRow = (c) => `<tr><td class="ltr">${fmtDT(Date.parse(c.at))}</td>${c.station_name !== undefined && !cur ? "" : ""}<td>${esc(c.label || c.action)}</td><td class="ltr" style="font-size:11px">${esc(c.device_sn)}</td><td class="${c.status === "done" ? "g" : "b"}">${c.status === "done" ? "✅" : esc(c.status)}</td><td>${esc(c.actor || "")}</td></tr>`;
+async function loadStationLog() {
+  try {
+    const r = await api(`control?log=1&station=${stId(cur)}`);
+    $("ctlLogBox").innerHTML = r.log.length ? `<div class="card"><h3>سجل الأوامر لهذا النظام</h3><div class="tw"><table><thead><tr><th>الوقت</th><th>الأمر</th><th>الإنفرتر</th><th>النتيجة</th><th>بواسطة</th></tr></thead><tbody>${r.log.map(ctlRow).join("")}</tbody></table></div></div>` : "";
+  } catch (e) {}
+}
+async function showCtlLog() {
+  showView("ctlView"); const body = $("ctlBody"); body.innerHTML = '<div class="card loading">جاري التحميل…</div>';
+  try {
+    const r = await api("control?log=1");
+    body.innerHTML = `<div class="card"><h2>سجل أوامر التحكم</h2>${r.log.length ? `<div class="tw"><table><thead><tr><th>الوقت</th><th>النظام</th><th>الأمر</th><th>الإنفرتر</th><th>النتيجة</th><th>بواسطة</th></tr></thead><tbody>${r.log.map((c) => `<tr><td class="ltr">${fmtDT(Date.parse(c.at))}</td><td><a href="#" onclick="openStation('${c.station_id}');return false">${esc(c.station_name || c.station_id)}</a></td><td>${esc(c.label || c.action)}</td><td class="ltr" style="font-size:11px">${esc(c.device_sn)}</td><td class="${c.status === "done" ? "g" : "b"}">${c.status === "done" ? "✅" : esc(c.status)}</td><td>${esc(c.actor || "")}</td></tr>`).join("")}</tbody></table></div>` : '<div class="muted">لا توجد أوامر بعد</div>'}</div>`;
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+
+// ---------- fleet audit ----------
+async function showAudit() {
+  showView("auditView"); const body = $("auditBody"); body.innerHTML = '<div class="card loading">جاري التحميل…</div>';
+  try {
+    const r = await api("audit");
+    const withIssues = r.items.filter((x) => x.bad || x.warn);
+    const last = r.items.map((x) => Date.parse(x.readAt)).filter(Boolean).sort().pop();
+    body.innerHTML = `<div class="card"><h2>تدقيق إعدادات كل الأنظمة</h2><div class="muted" style="font-size:13px">آخر قراءة ${last ? fmtDT(last) : "—"} · ${r.items.length} نظام · ${withIssues.length} فيها ملاحظات. يتحدث تلقائياً كل ليلة.</div>
+      <button style="margin-top:8px" onclick="runJob('settings', this).then(showAudit).catch((e) => showErr(e.message))">قراءة كل الإنفرترات الآن</button></div>
+      ${r.items.map((s) => `<div class="card"><h3 style="cursor:pointer;color:var(--blue)" onclick="openStation('${s.id}')">${esc(s.name || s.id)} <span class="badge">${s.inverters.length} إنفرتر</span></h3>${fdList(s.findings.filter((x) => x.lvl !== "good"))}</div>`).join("") || '<div class="card muted">لا توجد قراءات بعد — اضغط "قراءة كل الإنفرترات الآن".</div>'}`;
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+
+// ---------- fleet panel health ----------
+async function showSoiling() {
+  showView("soilingView"); const body = $("soilingBody"); body.innerHTML = '<div class="card loading">جاري التحميل…</div>';
+  try {
+    const r = await api("soiling");
+    const last = r.items.map((x) => Date.parse(x.updated)).filter(Boolean).sort().pop();
+    body.innerHTML = `<div class="card"><h2>صحة الألواح لكل الأنظمة</h2><div class="muted" style="font-size:13px">مرتبة حسب الطاقة الضائعة من الاتساخ. آخر تحديث ${last ? fmtDT(last) : "—"} (كل ليلة).</div>
+      <button style="margin-top:8px" onclick="runJob('health', this).then(showSoiling).catch((e) => showErr(e.message))">تحديث الآن</button></div>
+      <div class="card"><div class="tw"><table><thead><tr><th>النظام</th><th>kWp</th><th>PR الآن</th><th>اتساخ</th><th>ضائع kWh/شهر</th><th>عن السنة الماضية</th><th>توقع بكرا kWh</th></tr></thead><tbody>
+      ${r.items.map((x) => `<tr style="cursor:pointer" onclick="openStation('${x.id}')"><td>${esc(x.name)}</td><td>${f(x.kwp, 1)}</td><td class="${cls3(x.prNow, .75, .65)}">${pct0(x.prNow)}</td><td class="${x.soilingPct >= 12 ? "b" : x.soilingPct >= 6 ? "w" : "g"}">${x.soilingPct ?? "—"}%</td><td>${f(x.lossKwhMonth, 0)}</td><td class="${x.degradationPct <= -4 ? "b" : ""}">${x.degradationPct === null ? "—" : x.degradationPct + "%"}</td><td>${f(x.forecast?.[0]?.kwh, 0)}</td></tr>`).join("") || '<tr><td colspan="7" class="muted">لا توجد بيانات بعد — اضغط "تحديث الآن".</td></tr>'}
+      </tbody></table></div></div>`;
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+
+// ---------- tickets ----------
+const TST = { open: "مفتوحة", in_progress: "قيد العمل", done: "منتهية" };
+const tkCard = (t) => `<div class="tk ${t.status === "done" ? "done" : ""}"><div class="h"><div><b>${esc(t.title)}</b> ${t.priority === "high" ? "🔥" : ""}<div class="muted" style="font-size:12px">${t.station_name ? `<a href="#" onclick="openStation('${t.station_id}');return false">${esc(t.station_name)}</a> · ` : ""}#${t.id} · ${fmtDT(Date.parse(t.created_at))}${t.assignee ? " · 👷 " + esc(t.assignee) : ""}</div></div>
+  <select onchange="tkSave(${t.id},{status:this.value})" class="st-${t.status}" style="width:auto">${Object.entries(TST).map(([k, v]) => `<option value="${k}" ${k === t.status ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+  ${t.details ? `<div style="font-size:14px;margin-top:4px;white-space:pre-wrap">${esc(t.details)}</div>` : ""}
+  ${(t.notes || []).map((n) => `<div class="muted" style="font-size:12px;border-top:1px dashed var(--line);margin-top:4px;padding-top:4px">${fmtDT(Date.parse(n.at))}: <span style="color:var(--ink)">${esc(n.t)}</span></div>`).join("")}
+  <div class="row" style="margin-top:6px"><input id="tn${t.id}" placeholder="ملاحظة / ما تم عمله…" style="flex:1"><button class="ghost" onclick="tkNote(${t.id})">إضافة</button><input id="ta${t.id}" placeholder="الفني" value="${esc(t.assignee || "")}" style="width:90px" onchange="tkSave(${t.id},{assignee:this.value})"></div></div>`;
+async function tkSave(id, p) { try { await apiPost("tickets", { id, ...p }); showErr(""); refreshTk(); } catch (e) { showErr(e.message); } }
+function tkNote(id) { const v = $("tn" + id).value.trim(); if (v) tkSave(id, { note: v }); }
+let tkFilter = "active";
+function refreshTk() { if (!$("ticketsView").classList.contains("hide")) showTickets(); else if (cur && !$("t-file").classList.contains("hide")) loadStationTickets(); }
+async function showTickets(fl) {
+  if (fl) tkFilter = fl;
+  showView("ticketsView"); const body = $("ticketsBody"); body.innerHTML = '<div class="card loading">جاري التحميل…</div>';
+  try {
+    const r = await api(`tickets?status=${tkFilter}`);
+    body.innerHTML = `<div class="card"><h2>تذاكر الصيانة</h2><div class="row"><button class="${tkFilter === "active" ? "" : "ghost"}" onclick="showTickets('active')">المفتوحة</button><button class="${tkFilter === "done" ? "" : "ghost"}" onclick="showTickets('done')">المنتهية</button></div>
+      <div class="muted" style="font-size:12px;margin-top:6px">لفتح تذكرة: من التنبيهات (زر 🎫) أو من تبويب "ملف النظام" لأي نظام.</div></div>
+      <div class="card">${r.tickets.map(tkCard).join("") || '<div class="muted">لا توجد تذاكر</div>'}</div>`;
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+async function ticketFromAlert(alertId, stationId, msg) {
+  const title = prompt("عنوان التذكرة:", msg); if (!title) return;
+  try { await apiPost("tickets", { station_id: stationId, title, source: "alert", alert_id: alertId, priority: "high" }); showErr(""); alert("تم فتح التذكرة ✅"); } catch (e) { showErr(e.message); }
+}
+
+// ---------- system file (station) ----------
+let sfile = null;
+async function loadFile() {
+  const body = $("fileBody"); body.innerHTML = '<div class="card loading">جاري التحميل…</div>';
+  try {
+    sfile = await api(`sfile?id=${stId(cur)}`); showErr("");
+    const d = sfile.data || {}, w = d.warranty || [];
+    body.innerHTML = `<div class="card"><h3>👤 الزبون وروابطه</h3><div class="fl">
+        <div><label>اسم الزبون</label><input id="sfName" value="${esc(d.customerName || cur.ownerName || "")}"></div>
+        <div><label>هاتف / واتساب</label><input id="sfPhone" class="ltr" value="${esc(d.phone || cur.contactPhone || "")}"></div>
+        <div><label>تاريخ التركيب</label><input id="sfDate" type="date" value="${esc(d.installDate || "")}"></div>
+        <div><label>سعر الكيلوواط للتوفير $</label><input id="sfPrice" type="number" step="0.01" value="${esc(d.price ?? 0.3)}"></div>
+      </div><label style="font-size:13px;display:block;margin-top:6px"><input type="checkbox" id="sfMonthly" ${d.monthlyReport === false ? "" : "checked"}> إرسال التقرير الشهري لهذا الزبون</label>
+      <div class="row" style="margin-top:8px"><button class="ghost" onclick="custLink()">🔗 رابط الزبون المباشر</button><button class="or" onclick="custWa()">📲 أرسل التقرير على واتساب</button></div><div id="custOut"></div></div>
+      <div class="card"><h3>🛡️ الكفالات والأرقام التسلسلية</h3><div class="tw"><table class="tou" id="wTable"><thead><tr><th>القطعة</th><th>الموديل / Serial</th><th>الكفالة حتى</th><th></th></tr></thead><tbody>
+        ${(w.length ? w : [{}]).map(wRow).join("")}</tbody></table></div><button class="ghost" onclick="$('wTable').tBodies[0].insertAdjacentHTML('beforeend', wRow({}))">+ سطر</button></div>
+      <div class="card"><h3>📝 ملاحظات</h3><textarea id="sfNotes" rows="4" style="width:100%">${esc(d.notes || "")}</textarea><button style="margin-top:6px" onclick="saveFile()">حفظ ملف النظام</button></div>
+      <div class="card"><h3>📷 صور ومستندات</h3><div class="muted" style="font-size:12px">صور التركيب، المخططات، الفواتير، الكفالات… (الصور تُضغط تلقائياً، الملفات حتى 2MB)</div>
+        <input type="file" id="sfUp" multiple accept="image/*,application/pdf" style="margin:8px 0" onchange="upFiles(this.files)"><div id="upMsg"></div>
+        <div class="thumbs">${(sfile.files || []).map((x) => `<a href="/api/file?id=${x.id}&${codeQ()}" target="_blank">${/^image\//.test(x.mime) ? `<img src="/api/file?id=${x.id}&${codeQ()}" loading="lazy">` : `<div style="width:92px;height:92px;border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:30px">📄</div>`}${esc(x.name)}</a>`).join("") || '<span class="muted">لا يوجد</span>'}</div></div>
+      <div class="card"><h3>🎫 تذاكر هذا النظام</h3><div class="row"><input id="ntTitle" placeholder="عنوان التذكرة (مثلاً: تنظيف الألواح)" style="flex:1"><select id="ntPri" style="width:auto"><option value="normal">عادية</option><option value="high">عاجلة</option></select><button onclick="newTicket()">فتح تذكرة</button></div>
+        <textarea id="ntDet" rows="2" placeholder="تفاصيل (اختياري)" style="width:100%;margin-top:6px"></textarea><div id="stTk" style="margin-top:8px"></div></div>`;
+    loadStationTickets();
+  } catch (e) { body.innerHTML = ""; showErr(e.message); }
+}
+const wRow = (x) => `<tr><td><input data-f="item" value="${esc(x.item || "")}" placeholder="إنفرتر / بطارية / ألواح" style="width:130px"></td><td><input data-f="serial" class="ltr" value="${esc(x.serial || "")}" style="width:150px"></td><td><input data-f="until" type="date" value="${esc(x.until || "")}" style="width:140px"></td><td><button class="ghost" style="padding:4px 8px" onclick="this.closest('tr').remove()">✕</button></td></tr>`;
+function fileData() {
+  const warranty = [...document.querySelectorAll("#wTable tbody tr")].map((tr) => { const o = {}; tr.querySelectorAll("[data-f]").forEach((i) => o[i.dataset.f] = i.value.trim()); return o; }).filter((o) => o.item || o.serial);
+  return { ...(sfile?.data || {}), customerName: $("sfName").value.trim(), phone: $("sfPhone").value.trim(), installDate: $("sfDate").value, price: Number($("sfPrice").value) || 0.3, monthlyReport: $("sfMonthly").checked, warranty, notes: $("sfNotes").value };
+}
+async function saveFile() { try { await apiPost("sfile", { station_id: stId(cur), data: fileData() }); sfile.data = fileData(); showErr(""); alert("تم الحفظ ✅"); } catch (e) { showErr(e.message); } }
+async function custLink() {
+  try { const r = await api(`portal?fn=link&s=${stId(cur)}`); const url = location.origin + r.path;
+    $("custOut").innerHTML = `<div class="fd info" style="margin-top:8px;word-break:break-all">رابط الزبون (يرى نظامه فقط، بدون رمز دخول):<br><a href="${url}" target="_blank" class="ltr">${url}</a><br><button class="ghost" style="margin-top:6px" onclick="navigator.clipboard.writeText('${url}').then(()=>this.textContent='تم النسخ ✓')">نسخ</button></div>`;
+  } catch (e) { showErr(e.message); }
+}
+async function custWa() {
+  try { await apiPost("sfile", { station_id: stId(cur), data: fileData() }); const r = await api(`share?id=${stId(cur)}`); window.open(r.wa, "_blank"); } catch (e) { showErr(e.message); }
+}
+function compressImg(file) {
+  return new Promise((ok, bad) => { const img = new Image(); img.onload = () => { const s = Math.min(1, 1600 / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); ok(c.toDataURL("image/jpeg", 0.8).split(",")[1]); URL.revokeObjectURL(img.src); }; img.onerror = bad; img.src = URL.createObjectURL(file); });
+}
+const readB64 = (file) => new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = bad; r.readAsDataURL(file); });
+async function upFiles(list) {
+  const files = [...list]; let n = 0;
+  for (const fl of files) {
+    $("upMsg").textContent = `جاري الرفع ${++n}/${files.length}…`;
+    try {
+      const isImg = /^image\//.test(fl.type);
+      const data = isImg ? await compressImg(fl) : await readB64(fl);
+      await apiPost("sfile", { station_id: stId(cur), upload: { name: isImg ? fl.name.replace(/\.\w+$/, "") + ".jpg" : fl.name, mime: isImg ? "image/jpeg" : fl.type || "application/pdf", data } });
+    } catch (e) { showErr(`${fl.name}: ${e.message}`); }
+  }
+  $("upMsg").textContent = ""; loadFile();
+}
+async function newTicket() {
+  const title = $("ntTitle").value.trim(); if (!title) return showErr("اكتب عنوان التذكرة");
+  try { await apiPost("tickets", { station_id: stId(cur), title, details: $("ntDet").value.trim(), priority: $("ntPri").value, source: "manual" }); $("ntTitle").value = ""; $("ntDet").value = ""; showErr(""); loadStationTickets(); } catch (e) { showErr(e.message); }
+}
+async function loadStationTickets() {
+  try { const r = await api(`tickets?station=${stId(cur)}`); $("stTk").innerHTML = r.tickets.map(tkCard).join("") || '<div class="muted">لا توجد تذاكر</div>'; } catch (e) {}
 }
 
 // ---------------- demo data (open with ?demo) ----------------
