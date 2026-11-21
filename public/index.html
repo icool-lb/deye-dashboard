@@ -605,7 +605,7 @@ async function loadHealth() {
     body.innerHTML = `<div class="card"><h3>صحة الألواح</h3>${fdList(h.findings)}</div>
       <div class="card"><div class="tiles">
         <div class="tile"><div class="l">نسبة الأداء الآن (PR)</div><div class="v">${pct0(h.prNow)}</div><div class="s">الطبيعي 75–85%</div></div>
-        <div class="tile"><div class="l">أفضل PR آخر 6 أشهر</div><div class="v">${pct0(h.prBest)}</div><div class="s">${h.bestAt || ""}</div></div>
+        <div class="tile"><div class="l">أفضل PR آخر 3 أشهر</div><div class="v">${pct0(h.prBest)}</div><div class="s">${h.bestAt || ""}</div></div>
         <div class="tile"><div class="l">خسارة الاتساخ</div><div class="v">${h.soilingPct ?? "—"} <small>%</small></div><div class="s">~${f(h.lossKwhMonth, 0)} kWh بالشهر</div></div>
         <div class="tile"><div class="l">التغير عن السنة الماضية</div><div class="v">${h.degradationPct === null ? "—" : (h.degradationPct > 0 ? "+" : "") + h.degradationPct + "%"}</div><div class="s">PR ${pct0(h.pr0)} → ${pct0(h.pr1)}</div></div>
         <div class="tile"><div class="l">آخر مطر قوي</div><div class="v" style="font-size:16px">${h.lastRain || "—"}</div></div>
@@ -751,7 +751,7 @@ async function showSoiling() {
     body.innerHTML = `<div class="card"><h2>صحة الألواح لكل الأنظمة</h2><div class="muted" style="font-size:13px">مرتبة حسب الطاقة الضائعة من الاتساخ. ⚠️kWp = القدرة المسجلة خطأ · 🔋 = البطارية ممتلئة معظم الأيام (الأداء محدود بالاستهلاك). آخر تحديث ${last ? fmtDT(last) : "—"} (كل ليلة).</div>
       <button style="margin-top:8px" onclick="runJob('health', this).then(showSoiling).catch((e) => showErr(e.message))">تحديث الآن</button></div>
       <div class="card"><div class="tw"><table><thead><tr><th>النظام</th><th>kWp</th><th>PR الآن</th><th>اتساخ</th><th>ضائع kWh/شهر</th><th>عن السنة الماضية</th><th>توقع بكرا kWh</th></tr></thead><tbody>
-      ${r.items.map((x) => `<tr style="cursor:pointer" onclick="openStation('${x.id}')"><td>${esc(x.name)}</td><td>${f(x.kwp, 1)}</td><td class="${x.kwpWrong ? "w" : cls3(x.prNow, .75, .65)}">${pct0(x.prNow)}${x.kwpWrong ? " ⚠️kWp" : x.freeShare < .3 ? " 🔋" : ""}</td><td class="${x.soilingPct >= 18 ? "b" : x.soilingPct >= 10 ? "w" : "g"}">${x.soilingPct === null || x.soilingPct === undefined ? "—" : x.soilingPct + "%"}</td><td>${x.soilingPct ? f(x.lossKwhMonth, 0) : "—"}</td><td class="${x.degradationPct <= -4 ? "b" : ""}">${x.degradationPct === null ? "—" : x.degradationPct + "%"}</td><td>${f(x.forecast?.[0]?.kwh, 0)}</td></tr>`).join("") || '<tr><td colspan="7" class="muted">لا توجد بيانات بعد — اضغط "تحديث الآن".</td></tr>'}
+      ${r.items.map((x) => `<tr style="cursor:pointer" onclick="openStation('${x.id}')"><td>${esc(x.name)}</td><td>${f(x.kwp, 1)}</td><td class="${x.kwpWrong ? "w" : cls3(x.prNow, .75, .65)}">${pct0(x.prNow)}${x.kwpWrong ? " ⚠️kWp" : x.freeShare < .3 ? " 🔋" : ""}</td><td class="${x.soilingPct >= 18 ? "b" : x.soilingPct >= 10 ? "w" : "g"}">${x.soilingPct === null || x.soilingPct === undefined ? "—" : x.soilingPct + "%"}</td><td>${x.soilingPct ? f(x.lossKwhMonth, 0) : "—"}</td><td class="${x.degradationPct <= -4 && x.freeShare >= .3 ? "b" : ""}">${x.degradationPct === null || x.freeShare < .3 || x.kwpWrong ? "—" : x.degradationPct + "%"}</td><td>${f(x.forecast?.[0]?.kwh, 0)}</td></tr>`).join("") || '<tr><td colspan="7" class="muted">لا توجد بيانات بعد — اضغط "تحديث الآن".</td></tr>'}
       </tbody></table></div></div>`;
   } catch (e) { body.innerHTML = ""; showErr(e.message); }
 }
