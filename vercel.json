@@ -1,8 +1,44 @@
 {
-  "functions": { "api/main.js": { "maxDuration": 300, "includeFiles": "lib/**" } },
+  "functions": {
+    "api/main.js": {
+      "maxDuration": 300,
+      "includeFiles": "lib/**"
+    }
+  },
   "rewrites": [
-    { "source": "/api/cron/:job", "destination": "/api/main?fn=cron-:job" },
-    { "source": "/api/:fn", "destination": "/api/main?fn=:fn" }
+    {
+      "source": "/api/cron/:job",
+      "destination": "/api/main?fn=cron-:job"
+    },
+    {
+      "source": "/api/:fn",
+      "destination": "/api/main?fn=:fn"
+    }
   ],
-  "crons": [{ "path": "/api/cron/sync", "schedule": "10 1 * * *" }]
+  "crons": [
+    {
+      "path": "/api/cron/sync",
+      "schedule": "10 1 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(index.html|c.html)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    }
+  ]
 }

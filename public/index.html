@@ -36,8 +36,8 @@ button.or{background:var(--orange)}
 .st .dot.on{background:var(--ok)}.st .dot.off{background:var(--bad)}
 .kv{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:13px}
 .kv b{color:var(--blue)}
-.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px}
-.tabs button{white-space:nowrap;background:#fff;color:var(--ink);border:1px solid var(--line)}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+.tabs button{white-space:nowrap;background:#fff;color:var(--ink);border:1px solid var(--line);font-size:13px;padding:9px 4px;overflow:hidden;text-overflow:ellipsis}
 .tabs button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
@@ -158,8 +158,8 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
       <button data-t="day" onclick="tab('day')">منحنى اليوم</button>
       <button data-t="eval" onclick="tab('eval')">تقييم الأداء</button>
       <button data-t="health" onclick="tab('health')">صحة الألواح</button>
-      <button data-t="settings" onclick="tab('settings')">الإعدادات والتحكم</button>
-      <button data-t="file" onclick="tab('file')">ملف النظام</button>
+      <button data-t="settings" onclick="tab('settings')">⚙️ الإعدادات</button>
+      <button data-t="file" onclick="tab('file')">📁 ملف النظام</button>
       <button data-t="devices" onclick="tab('devices')">الأجهزة</button>
       <button data-t="report" onclick="tab('report')">تقرير شهري</button>
     </div>
@@ -626,7 +626,7 @@ async function loadHealth() {
 const WMN = { SELLING_FIRST: "بيع للشبكة أولاً", ZERO_EXPORT_TO_LOAD: "Zero Export للحمل", ZERO_EXPORT_TO_CT: "Zero Export مع CT" };
 let lastSet = null;
 function loadSettingsTab() {
-  $("setBody").innerHTML = `<div class="card"><h3>إعدادات الإنفرترات</h3><div class="muted" style="font-size:13px">القراءة تتم مباشرة من الإنفرتر (10–25 ثانية) ولا تغيّر شيئاً.</div><button style="margin-top:8px" onclick="readSet(this)">قراءة الإعدادات الآن</button></div><div id="setRes"></div><div id="smartBox"></div><div id="ctlLogBox"></div>`;
+  $("setBody").innerHTML = `<div class="card"><h3>إعدادات الإنفرترات والتحكم</h3><div class="muted" style="font-size:13px">القراءة تتم مباشرة من الإنفرتر (10–25 ثانية) ولا تغيّر شيئاً.</div><button style="margin-top:8px" onclick="readSet(this)">قراءة الإعدادات الآن</button></div><div id="setRes"></div><div id="smartBox"></div><div id="ctlLogBox"></div>`;
   loadSmart(); loadStationLog();
 }
 async function readSet(btn) {
