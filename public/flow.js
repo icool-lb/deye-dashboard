@@ -66,6 +66,7 @@
         <text y="22" text-anchor="middle" style="font-size:10.5px;font-weight:700;fill:#0066A7">الإنفرتر${f.inverters > 1 ? " ×" + f.inverters : ""}</text>
       </g>
     </svg>
+    ${f.stale ? `<div style="text-align:center;color:#c0392b;font-size:12.5px;font-weight:700">⚠️ قيم قديمة — آخر قراءة ${new Date(f.ts * 1000).toLocaleString("en-GB", { hour12: false })}</div>` : ""}
     <div class="icf-badges">
       <span style="background:${f.gridOn ? "#e7f1f9" : "#fdecea"};color:${f.gridOn ? "#0066A7" : "#c0392b"}">⚡ الدولة ${f.gridOn ? "موجودة" : "مقطوعة"}</span>
       <span style="background:${f.genOn ? "#efedfb" : "#f2f4f7"};color:${f.genOn ? "#6b5bd6" : "#8795a1"}">🛠️ المولد ${f.genOn ? "يعمل" : "متوقف"}</span>
