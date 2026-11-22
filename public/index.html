@@ -147,6 +147,7 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
       <h2 style="margin-bottom:4px">خريطة أنظمة iCOOL</h2>
       <div class="muted" id="mapCount"></div>
       <div class="mleg" id="mapLeg"></div>
+      <div id="stormNote" style="font-size:13px;font-weight:700;margin:2px 0 8px"></div>
       <div id="pinBanner" class="pin-banner hide"></div>
       <div id="map"></div>
       <div class="muted" style="font-size:12px">الحجم حسب القدرة المركبة (kWp). اضغط على أي نظام لتفاصيله.</div>
@@ -543,7 +544,7 @@ async function showMap() {
       LMAP.on("click", (e) => { if (pinFor) savePin(pinFor, e.latlng.lat, e.latlng.lng); });
     }
     setTimeout(() => LMAP.invalidateSize(), 50);
-    drawMap(true); renderNoLoc();
+    drawMap(true); renderNoLoc(); loadStormLayer();
   } catch (e) { $("mapCount").textContent = ""; showErr(e.message); }
 }
 function drawMap(fit) {
@@ -559,6 +560,19 @@ function drawMap(fit) {
   $("mapCount").textContent = `${placed} نظام على الخريطة من ${stations.length} · المعروض ${f(kwp, 0)} kWp`;
   $("mapLeg").innerHTML = Object.entries(MCAT).map(([k, [t, col]]) => `<button class="${mHide.has(k) ? "off" : ""}" onclick="togCat('${k}')"><i style="background:${col}"></i>${t} (${cnt[k]})</button>`).join("");
   if (fit && pts.length) LMAP.fitBounds(pts, { padding: [30, 30], maxZoom: 13 });
+}
+let stormLayer = null;
+async function loadStormLayer() {
+  try {
+    const r = DEMO ? { cells: [] } : await api("storm?hours=6");
+    if (stormLayer) stormLayer.remove(); stormLayer = L.layerGroup().addTo(LMAP);
+    const risky = r.cells.filter((c) => c.level || c.wind);
+    for (const c of risky) {
+      const col = c.level === "high" ? "#c0392b" : c.level === "watch" ? "#e67e22" : c.level === "possible" ? "#f1c40f" : "#6b5bd6";
+      L.circle([c.lat, c.lng], { radius: 14000, color: col, weight: 1, fillColor: col, fillOpacity: .18 }).bindPopup(`<div class="pp"><b>${c.level ? "⛈️ عاصفة رعدية" : "💨 رياح قوية"}</b><div class="kv">${c.startsAt ? `تبدأ حوالي ${c.startsAt}` : ""} ${c.gustMax ? `· هبات ${c.gustMax} كم/س` : ""} ${c.hail ? "· احتمال بَرَد" : ""}</div><div class="muted" style="font-size:12px">${c.stations.map((x) => esc(x.name)).join("، ")}</div></div>`).addTo(stormLayer);
+    }
+    $("stormNote").innerHTML = risky.length ? `⛈️ تحذير طقس خلال 6 ساعات لـ ${risky.reduce((a, c) => a + c.stations.length, 0)} نظام (الدوائر على الخريطة)` : "☀️ لا عواصف رعدية متوقعة قرب الأنظمة خلال 6 ساعات";
+  } catch (e) { $("stormNote").textContent = ""; }
 }
 function togCat(k) { mHide.has(k) ? mHide.delete(k) : mHide.add(k); drawMap(false); }
 function popHtml(s, c, p) {
@@ -646,8 +660,8 @@ async function loadHealth() {
 const WMN = { SELLING_FIRST: "بيع للشبكة أولاً", ZERO_EXPORT_TO_LOAD: "Zero Export للحمل", ZERO_EXPORT_TO_CT: "Zero Export مع CT" };
 let lastSet = null;
 function loadSettingsTab() {
-  $("setBody").innerHTML = `<div class="card"><h3>إعدادات الإنفرترات والتحكم</h3><div class="muted" style="font-size:13px">القراءة تتم مباشرة من الإنفرتر (10–25 ثانية) ولا تغيّر شيئاً.</div><button style="margin-top:8px" onclick="readSet(this)">قراءة الإعدادات الآن</button></div><div id="setRes"></div><div id="smartBox"></div><div id="ctlLogBox"></div>`;
-  loadSmart(); loadStationLog();
+  $("setBody").innerHTML = `<div class="card"><h3>إعدادات الإنفرترات والتحكم</h3><div class="muted" style="font-size:13px">القراءة تتم مباشرة من الإنفرتر (10–25 ثانية) ولا تغيّر شيئاً.</div><button style="margin-top:8px" onclick="readSet(this)">قراءة الإعدادات الآن</button></div><div id="setRes"></div><div id="smartBox"></div><div id="loadsBox"></div><div id="ctlLogBox"></div>`;
+  loadSmart(); loadLoadsCard(); loadStationLog();
 }
 async function readSet(btn) {
   btn.disabled = true; $("setRes").innerHTML = '<div class="card loading">جاري القراءة من الإنفرترات…</div>';
@@ -727,12 +741,13 @@ async function loadSmart() {
       <div class="muted" style="font-size:13px">كل يوم الساعة 6 مساءً: إذا بكرا مشمس ينزل الاحتياط للحد الأدنى (استعمال أكثر للبطارية بالليل)، وإذا غائم يرفعه للحد الأعلى. يعدّل SOC بكل فترات جدول الوقت على كل الإنفرترات، ويحتاج Time of Use مفعل.</div>
       <div class="row" style="margin-top:8px"><label><input type="checkbox" id="ssOn" ${c.enabled ? "checked" : ""}> مفعل</label>
         <span>الأدنى</span><input type="number" id="ssMin" value="${c.min}" style="width:70px"><span>الأعلى</span><input type="number" id="ssMax" value="${c.max}" style="width:70px"><button onclick="saveSmart()">حفظ</button></div>
+      <label style="font-size:13px;display:block;margin-top:6px"><input type="checkbox" id="ssStorm" ${c.stormMode ? "checked" : ""}> ⛈️ وضع العاصفة: قبل العاصفة الرعدية ارفع الاحتياط للحد الأعلى (يشحن من الدولة/المولد إن وُجدت)</label>
       ${p.target !== undefined ? `<div class="fd info" style="margin-top:8px">بكرا ${esc(p.date)}: توقع ${f(p.forecastKwh, 0)} kWh مقابل استهلاك يومي ${f(p.loadKwh, 0)} kWh → الاحتياط المقترح <b>${p.target}%</b></div>` : p.skip ? `<div class="fd warn" style="margin-top:8px">${esc(p.skip)}</div>` : ""}
       ${r.last?.entry ? `<div class="muted" style="font-size:12px">آخر تشغيل ${fmtDT(Date.parse(r.last.at))}: ${r.last.entry.changed ? `تغيّر ${r.last.entry.current}% ← ${r.last.entry.target}%` : esc(r.last.entry.skip || r.last.entry.error || "بدون تغيير")}</div>` : ""}</div>`;
   } catch (e) { box.innerHTML = `<div class="card fd warn">${esc(e.message)}</div>`; }
 }
 async function saveSmart() {
-  try { await apiPost("smartsoc", { id: stId(cur), enabled: $("ssOn").checked, min: $("ssMin").value, max: $("ssMax").value }); loadSmart(); showErr(""); } catch (e) { showErr(e.message); }
+  try { await apiPost("smartsoc", { id: stId(cur), enabled: $("ssOn").checked, min: $("ssMin").value, max: $("ssMax").value, stormMode: $("ssStorm").checked }); loadSmart(); showErr(""); } catch (e) { showErr(e.message); }
 }
 const ctlRow = (c) => `<tr><td class="ltr">${fmtDT(Date.parse(c.at))}</td>${c.station_name !== undefined && !cur ? "" : ""}<td>${esc(c.label || c.action)}</td><td class="ltr" style="font-size:11px">${esc(c.device_sn)}</td><td class="${c.status === "done" ? "g" : "b"}">${c.status === "done" ? "✅" : esc(c.status)}</td><td>${esc(c.actor || "")}</td></tr>`;
 async function loadStationLog() {
@@ -985,6 +1000,55 @@ function renderDoctor(R, cached) {
     ${R.timeline?.length ? `<div class="card"><h3>🗓️ الخط الزمني للأحداث</h3>${R.timeline.map((t) => `<div style="display:flex;gap:8px;border-bottom:1px dashed var(--line);padding:5px 0;font-size:13px"><span class="ltr muted" style="white-space:nowrap">${t.date}${t.to && t.to !== t.date ? "→" + t.to.slice(5) : ""}</span><span>${{ offline: "📡", noprod: "⛔", drop: "📉", alarm: "📟" }[t.kind] || "•"} ${esc(t.t)}</span></div>`).join("")}</div>` : ""}`;
   if ((b.series || []).length > 4) chart("docBat", { type: "line", data: { labels: b.series.map((x) => x.d.slice(5)), datasets: [{ label: "kWh", data: b.series.map((x) => x.c), borderColor: "#1a9b5c", pointRadius: 2, tension: .3 }] }, options: { plugins: { legend: { display: false } } } });
 }
+
+
+// ---------- smart loads (eWeLink) ----------
+let ewDevs = null, sfLoads = null;
+async function loadLoadsCard() {
+  const box = $("loadsBox"); if (!box) return;
+  box.innerHTML = '<div class="card loading">الأحمال الذكية…</div>';
+  try {
+    const [st, fl] = await Promise.all([api("ewelink"), api(`sfile?id=${stId(cur)}`)]);
+    sfile = fl; sfLoads = (fl.data?.loads || []).map((x) => ({ ...x }));
+    const head = `<h3>🔌 الأحمال الذكية (eWeLink / Sonoff)</h3><div class="muted" style="font-size:12.5px">تفصل المنصة الأحمال غير الضرورية تلقائياً عندما البطارية لن تكفي للصباح أو تنزل تحت نسبة معينة، وتشغّل السخان/المضخة فقط على فائض الألواح، ثم ترجّع ما فصلته عند رجوع الكهرباء. يصل الزبون إشعار بكل عملية.</div>`;
+    if (!st.configured) { box.innerHTML = `<div class="card">${head}<div class="fd warn" style="margin-top:8px">لم يُضف مفتاح تطبيق eWeLink بعد (EWELINK_APPID و EWELINK_SECRET). أنشئ تطبيقاً على dev.ewelink.cc وضع Redirect URL:<br><span class="ltr" style="font-size:12px">${esc(st.redirect)}</span></div></div>`; return; }
+    if (!st.linked) { box.innerHTML = `<div class="card">${head}<button class="or" style="margin-top:8px" onclick="ewLogin()">ربط حساب eWeLink الخاص بـ iCOOL</button><div class="muted" style="font-size:12px;margin-top:4px">بعد الربط، اطلب من الزبون مشاركة أجهزة Sonoff مع هذا الحساب من تطبيق eWeLink.</div></div>`; return; }
+    box.innerHTML = `<div class="card">${head}<div class="muted" style="font-size:12px;margin-top:4px">✅ الحساب مربوط (${esc(st.region || "")})</div>
+      <label style="font-size:13px;display:block;margin:6px 0"><input type="checkbox" id="ldOn" ${fl.data?.loadsOn === false ? "" : "checked"}> التحكم التلقائي مفعّل لهذا النظام</label>
+      <div class="tw"><table class="tou" id="ldTable"><thead><tr><th>الحمل</th><th>kW</th><th>أولوية</th><th>بطارية لا تكفي</th><th>افصل تحت %</th><th>على الفائض فقط</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="row" style="margin-top:6px"><button class="ghost" onclick="ewLoadDevs()">+ إضافة جهاز من eWeLink</button><span id="ewPick"></span></div>
+      <button style="margin-top:8px" onclick="saveLoads()">حفظ الأحمال</button><div id="ldMsg" class="muted" style="font-size:12px;margin-top:4px"></div></div>`;
+    renderLoads();
+  } catch (e) { box.innerHTML = `<div class="card fd warn">${esc(e.message)}</div>`; }
+}
+function renderLoads() {
+  const tb = $("ldTable")?.tBodies[0]; if (!tb) return;
+  tb.innerHTML = sfLoads.map((l, i) => `<tr><td><input value="${esc(l.name)}" onchange="sfLoads[${i}].name=this.value" style="width:110px"><div class="muted ltr" style="font-size:10px">${esc(l.id)}${l.outlet !== null && l.outlet !== undefined && l.outlet !== "" ? " #" + l.outlet : ""}</div></td>
+    <td><input type="number" step="0.1" value="${l.kw ?? 1}" onchange="sfLoads[${i}].kw=+this.value" style="width:56px"></td>
+    <td><input type="number" value="${l.priority ?? i + 1}" onchange="sfLoads[${i}].priority=+this.value" style="width:44px"></td>
+    <td><input type="checkbox" ${l.shedOnRuntime !== false ? "checked" : ""} onchange="sfLoads[${i}].shedOnRuntime=this.checked"></td>
+    <td><input type="number" value="${l.shedBelowSoc ?? ""}" placeholder="—" onchange="sfLoads[${i}].shedBelowSoc=+this.value||null" style="width:50px"></td>
+    <td><input type="checkbox" ${l.solarOnly ? "checked" : ""} onchange="sfLoads[${i}].solarOnly=this.checked"></td>
+    <td style="white-space:nowrap"><button class="ghost" style="padding:3px 7px" onclick="ewToggle(${i},true)">▶</button><button class="ghost" style="padding:3px 7px" onclick="ewToggle(${i},false)">⏸</button><button class="ghost" style="padding:3px 7px" onclick="sfLoads.splice(${i},1);renderLoads()">✕</button></td></tr>`).join("") || '<tr><td colspan="7" class="muted">لا توجد أحمال بعد</td></tr>';
+}
+async function ewLogin() { try { const r = await api("ewelink?op=login"); location.href = r.url; } catch (e) { showErr(e.message); } }
+async function ewLoadDevs() {
+  $("ewPick").textContent = "…";
+  try {
+    ewDevs = ewDevs || (await api("ewelink?op=devices")).devices;
+    const opts = ewDevs.flatMap((d) => d.channels ? d.channels.map((c) => [`${d.id}|${c.outlet}`, `${d.name} — قناة ${c.outlet + 1}${d.online ? "" : " (غير متصل)"}`]) : [[`${d.id}|`, `${d.name}${d.online ? "" : " (غير متصل)"}`]]);
+    $("ewPick").innerHTML = `<select id="ewSel" style="max-width:200px">${opts.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("")}</select> <button onclick="ewAdd()">أضف</button>`;
+  } catch (e) { $("ewPick").textContent = ""; showErr(e.message); }
+}
+function ewAdd() {
+  const [id, outlet] = $("ewSel").value.split("|"); const d = ewDevs.find((x) => x.id === id);
+  sfLoads.push({ id, outlet: outlet === "" ? null : Number(outlet), name: d?.name || id, kw: 1, priority: sfLoads.length + 1, shedOnRuntime: true, shedBelowSoc: null, solarOnly: false }); renderLoads();
+}
+async function ewToggle(i, on) { const l = sfLoads[i]; try { await apiPost("ewelink", { id: l.id, outlet: l.outlet, on }); $("ldMsg").textContent = `${on ? "شُغّل" : "فُصل"} ${l.name} ✓`; } catch (e) { showErr(e.message); } }
+async function saveLoads() {
+  try { const data = { ...(sfile?.data || {}), loads: sfLoads, loadsOn: $("ldOn").checked }; await apiPost("sfile", { station_id: stId(cur), data }); sfile.data = data; $("ldMsg").textContent = "تم الحفظ ✓ — يعمل التحكم كل 5 دقائق"; } catch (e) { showErr(e.message); }
+}
+if (/ewelink=ok/.test(location.search)) setTimeout(() => alert("✅ تم ربط حساب eWeLink"), 500);
 
 // ---------------- demo data (open with ?demo) ----------------
 function demoApi(path) {

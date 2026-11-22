@@ -10,7 +10,7 @@ const routes = {
   sfile: () => import("../lib/h-sfile.js"), file: () => import("../lib/h-file.js"), portal: () => import("../lib/h-portal.js"),
   smartsoc: () => import("../lib/h-smartsoc.js"), share: () => import("../lib/h-share.js"),
   "cron-settings": () => import("../lib/h-cron-settings.js"), "cron-health": () => import("../lib/h-cron-health.js"),
-  "cron-smartsoc": () => import("../lib/h-cron-smartsoc.js"), "cron-monthly": () => import("../lib/h-cron-monthly.js"),  live: () => import("../lib/h-live.js"), "tg-webhook": () => import("../lib/h-tg-webhook.js"), "cron-live": () => import("../lib/h-cron-live.js"),  gridreport: () => import("../lib/h-gridreport.js"), "cron-grid": () => import("../lib/h-cron-grid.js"),  doctor: () => import("../lib/h-doctor.js"),
+  "cron-smartsoc": () => import("../lib/h-cron-smartsoc.js"), "cron-monthly": () => import("../lib/h-cron-monthly.js"),  live: () => import("../lib/h-live.js"), "tg-webhook": () => import("../lib/h-tg-webhook.js"), "cron-live": () => import("../lib/h-cron-live.js"),  gridreport: () => import("../lib/h-gridreport.js"), "cron-grid": () => import("../lib/h-cron-grid.js"),  doctor: () => import("../lib/h-doctor.js"),  storm: () => import("../lib/h-storm.js"), "cron-storm": () => import("../lib/h-cron-storm.js"),  ewelink: () => import("../lib/h-ewelink.js"), "ewelink-cb": () => import("../lib/h-ewelink-cb.js"),
 };
 export default async function handler(req, res) {
   const fn = String(req.query.fn || "");
