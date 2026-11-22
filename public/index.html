@@ -161,6 +161,7 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
       <div class="muted" id="stMeta"></div>
     </div>
     <div class="tabs">
+      <button data-t="doctor" onclick="tab('doctor')" style="grid-column:1/-1;background:linear-gradient(90deg,#0066A7,#F1471E);color:#fff;border:0;font-weight:800">🩺 Doctor Deye — فحص شامل</button>
       <button data-t="peaks" class="on" onclick="tab('peaks')">الذروة اليومية</button>
       <button data-t="live" onclick="tab('live')">الآن</button>
       <button data-t="day" onclick="tab('day')">منحنى اليوم</button>
@@ -203,6 +204,7 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
 
     <div id="t-devices" class="hide"><div id="devBody"></div></div>
     <div id="t-eval" class="hide"><div class="card row"><select id="evDays" style="width:auto" onchange="loadEval()"><option value="14">آخر 14 يوم</option><option value="30" selected>آخر 30 يوم</option><option value="60">آخر 60 يوم</option></select><span class="muted">يحلل الألواح والـ Strings والإنفرتر والبطارية</span></div><div id="evalBody"></div></div>
+    <div id="t-doctor" class="hide"><div id="docBody"></div></div>
     <div id="t-health" class="hide"><div id="healthBody"></div></div>
     <div id="t-settings" class="hide"><div id="setBody"></div></div>
     <div id="t-file" class="hide"><div id="fileBody"></div></div>
@@ -291,8 +293,8 @@ function openStation(id) {
 }
 function tab(t) {
   document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === t));
-  ["peaks", "live", "day", "devices", "eval", "report", "health", "settings", "file"].forEach((x) => $("t-" + x).classList.toggle("hide", x !== t));
-  ({ peaks: loadPeaks, live: loadLive, day: loadDay, devices: loadDevices, eval: loadEval, report: () => {}, health: loadHealth, settings: loadSettingsTab, file: loadFile })[t]();
+  ["peaks", "live", "day", "devices", "eval", "report", "health", "settings", "file", "doctor"].forEach((x) => $("t-" + x).classList.toggle("hide", x !== t));
+  ({ peaks: loadPeaks, live: loadLive, day: loadDay, devices: loadDevices, eval: loadEval, report: () => {}, health: loadHealth, settings: loadSettingsTab, file: loadFile, doctor: loadDoctor })[t]();
 }
 document.querySelectorAll("#ranges button").forEach((b) => b.onclick = () => {
   document.querySelectorAll("#ranges button").forEach((x) => x.classList.toggle("on", x === b));
@@ -946,6 +948,42 @@ function gridCsv() {
   const rows = gridData.items.map((x) => [x.region, x.name, x.onHoursDay, x.onPct, x.outages, x.longestOffH, x.vmin, x.vmax, x.fmin, x.fmax, x.lowVH, x.highVH, x.gapH]);
   const csv = "﻿" + [head, ...rows].map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `grid_${gridData.from}_${gridData.to}.csv`; a.click();
+}
+
+
+// ---------- Doctor Deye ----------
+async function loadDoctor() {
+  const box = $("docBody");
+  box.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:40px">🩺</div><h3>Doctor Deye</h3><div class="muted" style="font-size:13px">فحص شامل لكل تاريخ النظام: سنتين من البيانات اليومية، كل إنذارات Deye، 90 يوماً بدقة 5 دقائق، صحة البطارية الفعلية، الحمل، الشبكة، الإعدادات والألواح.</div><button class="or" style="margin-top:10px;font-size:16px;padding:12px 22px" onclick="runDoctor(this)">ابدأ الفحص الشامل</button></div><div id="docRes"></div>`;
+  try { const r = await api(`doctor?id=${stId(cur)}&last=1`); if (r.report) renderDoctor(r.report, true); } catch (e) {}
+}
+async function runDoctor(btn) {
+  btn.disabled = true; const steps = ["يقرأ سنتين من البيانات…", "يجمع كل إنذارات Deye…", "يحلل 90 يوماً بدقة 5 دقائق…", "يقيس سعة البطارية الفعلية…", "يقارن بالإشعاع الشمسي…", "يكتب التشخيص…"]; let i = 0;
+  $("docRes").innerHTML = `<div class="card loading" id="docProg">${steps[0]}</div>`;
+  const tm = setInterval(() => { i = Math.min(i + 1, steps.length - 1); if ($("docProg")) $("docProg").textContent = steps[i]; }, 9000);
+  try { const r = await api(`doctor?id=${stId(cur)}`); renderDoctor(r.report, false); showErr(""); }
+  catch (e) { $("docRes").innerHTML = ""; showErr(e.message); } finally { clearInterval(tm); btn.disabled = false; }
+}
+function renderDoctor(R, cached) {
+  const col = R.score >= 85 ? "#1a9b5c" : R.score >= 60 ? "#e08a00" : "#c0392b";
+  const lvIcon = { bad: "🔴", warn: "🟠", info: "🔵", good: "🟢" };
+  const b = R.battery || {};
+  $("docRes").innerHTML = `
+    <div class="card"><div class="row" style="gap:14px;align-items:center"><div style="width:84px;height:84px;border-radius:50%;border:7px solid ${col};display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:${col}">${R.score}</div>
+      <div><h3 style="margin:0">${esc(R.verdict)}</h3><div class="muted" style="font-size:12px">${cached ? "آخر فحص" : "الفحص"}: ${fmtDT(Date.parse(R.generatedAt))} · بيانات من ${R.coverage.from} (${R.coverage.daysWithData} يوم) · ${R.coverage.alarms} إنذار</div></div></div></div>
+    <div class="card"><h3>التشخيص</h3>${R.diagnoses.length ? R.diagnoses.map((d) => `<div class="fd ${d.lvl}" style="display:block"><div>${lvIcon[d.lvl] || ""} <b>${esc(d.title)}</b> <span class="badge">${esc(d.area)}</span>${d.since ? ` <span class="muted ltr" style="font-size:11px">منذ ${d.since}</span>` : ""}</div>${d.detail ? `<div style="font-size:13px;margin-top:3px">${esc(d.detail)}</div>` : ""}</div>`).join("") : '<div class="fd good">🟢 لم يُعثر على مشاكل</div>'}</div>
+    ${R.predictions?.length ? `<div class="card"><h3>🔮 التوقعات</h3>${R.predictions.map((p) => `<div class="fd info">${esc(p)}</div>`).join("")}</div>` : ""}
+    <div class="card"><h3>🔋 صحة البطارية الفعلية</h3><div class="tiles">
+      <div class="tile"><div class="l">السعة المقاسة</div><div class="v">${f(b.measuredKwh, 1)} <small>kWh</small></div><div class="s">من ${b.samples || 0} يوم قياس</div></div>
+      <div class="tile"><div class="l">المسجلة</div><div class="v">${f(b.nominalKwh, 1)} <small>kWh</small></div></div>
+      <div class="tile"><div class="l">الصحة (SOH)</div><div class="v">${b.sohPct ?? "—"}<small>%</small></div></div>
+      <div class="tile"><div class="l">التغير السنوي</div><div class="v">${b.perYearPct === null || b.perYearPct === undefined ? "—" : b.perYearPct + "%"}</div></div>
+      <div class="tile"><div class="l">آخر شحن 100%</div><div class="v" style="font-size:15px">${b.lastFull || "—"}</div></div></div>
+      ${(b.series || []).length > 4 ? '<canvas id="docBat" height="160" style="margin-top:8px"></canvas>' : ""}
+      <div class="muted" style="font-size:11.5px;margin-top:4px">تُقاس من الطاقة التي دخلت البطارية بين أدنى وأعلى نسبة شحن في كل يوم (أيام بفرق 30% على الأقل).</div></div>
+    ${R.alarms?.length ? `<div class="card"><h3>📟 سجل الإنذارات (سنتين)</h3><div class="tw"><table><thead><tr><th>الإنذار</th><th>المعنى</th><th>آخر 30 يوم</th><th>الكل</th><th>أول</th><th>آخر</th></tr></thead><tbody>${R.alarms.map((a) => `<tr title="${esc(a.action || "")}"><td class="ltr">${esc(a.name)}</td><td style="font-size:12px">${esc(a.meaning || "—")}${a.action ? `<div class="muted">${esc(a.action)}</div>` : ""}</td><td class="${a.recent30 >= 10 ? "b" : a.recent30 >= 3 ? "w" : ""}">${a.recent30}</td><td>${a.count}</td><td class="ltr">${a.first}</td><td class="ltr">${a.last}</td></tr>`).join("")}</tbody></table></div></div>` : ""}
+    ${R.timeline?.length ? `<div class="card"><h3>🗓️ الخط الزمني للأحداث</h3>${R.timeline.map((t) => `<div style="display:flex;gap:8px;border-bottom:1px dashed var(--line);padding:5px 0;font-size:13px"><span class="ltr muted" style="white-space:nowrap">${t.date}${t.to && t.to !== t.date ? "→" + t.to.slice(5) : ""}</span><span>${{ offline: "📡", noprod: "⛔", drop: "📉", alarm: "📟" }[t.kind] || "•"} ${esc(t.t)}</span></div>`).join("")}</div>` : ""}`;
+  if ((b.series || []).length > 4) chart("docBat", { type: "line", data: { labels: b.series.map((x) => x.d.slice(5)), datasets: [{ label: "kWh", data: b.series.map((x) => x.c), borderColor: "#1a9b5c", pointRadius: 2, tension: .3 }] }, options: { plugins: { legend: { display: false } } } });
 }
 
 // ---------------- demo data (open with ?demo) ----------------
