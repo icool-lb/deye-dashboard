@@ -7,6 +7,7 @@
 <title>نظام الطاقة الشمسية — iCOOL</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="flow.js"></script>
 <style>
 :root{--blue:#0066A7;--orange:#F1471E;--ink:#14222f;--muted:#5b6977;--line:#d6dee7;--panel:#f6f9fc}
 *{box-sizing:border-box}body{margin:0;font-family:Cairo,system-ui,sans-serif;background:#eef3f8;color:var(--ink)}
@@ -45,7 +46,9 @@ async function init() {
     const st = info.station, now = new Date(); const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const month = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, "0")}`;
     $("m").innerHTML = `<div class="card"><h2>${esc(st.name)}</h2><div class="muted">${f(st.kwp, 2)} kWp</div></div>
-      <div class="card"><h3>الآن</h3><div class="flow" id="now"><div class="muted">…</div></div><div class="muted" id="upd" style="margin-top:6px"></div></div>
+      <div class="card"><h3>الآن</h3><div id="now"><div class="muted">…</div></div><div class="muted" id="upd" style="margin-top:6px;text-align:center"></div></div>
+      <div class="card"><h3>🔋 هل تكفي البطارية حتى الصباح؟</h3><div id="rt"></div></div>
+      ${info.tgLink ? `<div class="card" style="text-align:center"><a class="btn" style="background:#229ED9" href="${info.tgLink}" target="_blank">🔔 فعّل التنبيهات على تلغرام</a><div class="muted" style="margin-top:6px">انقطاع الدولة، المولد، البطارية، وهل تكفي للصباح</div></div>` : ""}
       <div class="card"><h3>اليوم</h3><canvas id="dc" height="200"></canvas></div>
       ${(info.forecast || []).length ? `<div class="card"><h3>توقع الإنتاج</h3>${info.forecast.map((x) => `<div class="kv"><span>${x.date}</span><b>${f(x.kwh, 0)} kWh ${x.rain > 1 ? "🌧️" : x.poa < 3 ? "☁️" : "☀️"}</b></div>`).join("")}</div>` : ""}
       <div class="card"><h3>الإنتاج الشهري</h3><canvas id="mc" height="200"></canvas><div id="msum" style="margin-top:8px"></div></div>
@@ -55,14 +58,10 @@ async function init() {
 }
 async function loadNow() {
   try {
-    const L = (await api("now")).latest, kw = (v) => (v === null || v === undefined ? null : Number(v) / 1000);
-    const grid = kw(L.wirePower ?? L.gridPower), bat = kw(L.batteryPower);
-    $("now").innerHTML = `<div class="fb pv"><div class="i">☀️</div><div class="v">${f(kw(L.generationPower), 2)}</div><div class="l">kW إنتاج الألواح</div></div>
-      <div class="fb"><div class="i">🏠</div><div class="v">${f(kw(L.consumptionPower), 2)}</div><div class="l">kW استهلاك البيت</div></div>
-      <div class="fb bat"><div class="i">🔋</div><div class="v">${f(L.batterySOC, 0)}%</div><div class="l">${bat === null ? "البطارية" : bat < -0.05 ? `تشحن ${f(-bat, 2)} kW` : bat > 0.05 ? `تفرّغ ${f(bat, 2)} kW` : "البطارية"}</div></div>
-      <div class="fb"><div class="i">⚡</div><div class="v">${f(grid === null ? null : Math.abs(grid), 2)}</div><div class="l">kW ${grid > 0.05 ? "من الشبكة/المولد" : grid < -0.05 ? "إلى الشبكة" : "الشبكة/المولد"}</div></div>`;
-    const ts = Number(L.lastUpdateTime); $("upd").textContent = ts ? "آخر تحديث " + new Date(ts * (ts > 1e11 ? 1 : 1000)).toLocaleString("en-GB", { hour12: false }) : "";
-  } catch (e) {}
+    const r = await api("live");
+    icoolFlow($("now"), r.flow); icoolRuntime($("rt"), r.runtime);
+    const ts = Number(r.flow && r.flow.ts); $("upd").textContent = ts ? "آخر قراءة " + new Date(ts * (ts > 1e11 ? 1 : 1000)).toLocaleString("en-GB", { hour12: false }) : "";
+  } catch (e) { $("now").innerHTML = `<div class="muted">${esc(e.message)}</div>`; }
 }
 async function loadDay() {
   try {

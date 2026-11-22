@@ -8,6 +8,7 @@
 <link rel="apple-touch-icon" href="logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="flow.js"></script>
 <style>
 :root{--blue:#0066A7;--orange:#F1471E;--ink:#14222f;--muted:#5b6977;--line:#d6dee7;--panel:#f6f9fc;--ok:#1a9b5c;--bad:#c0392b}
 *{box-sizing:border-box}
@@ -182,7 +183,7 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:16px}
       <div id="peaksBody"></div>
     </div>
 
-    <div id="t-live" class="hide"><div id="liveBody"></div></div>
+    <div id="t-live" class="hide"><div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">مسار الطاقة الآن</h3><button class="ghost" style="padding:5px 10px" onclick="loadFlow()">↻</button></div><div id="flowBox" class="loading" style="margin-top:6px">جاري القراءة من الإنفرتر…</div></div><div class="card"><h3>🔋 هل تكفي البطارية حتى الصباح؟</h3><div id="rtBox"></div></div><div id="liveBody"></div></div>
 
     <div id="t-day" class="hide">
       <div class="card row">
@@ -364,7 +365,16 @@ function csv() {
 }
 
 // ---- live ----
+let flowTimer = null;
+async function loadFlow() {
+  const id = stId(cur);
+  try {
+    const r = await api(`live?id=${id}`); if (stId(cur) !== id) return;
+    $("flowBox").classList.remove("loading"); icoolFlow($("flowBox"), r.flow); icoolRuntime($("rtBox"), r.runtime, { owner: true });
+  } catch (e) { $("flowBox").classList.remove("loading"); $("flowBox").innerHTML = `<div class="muted">${esc(e.message)}</div>`; }
+}
 async function loadLive() {
+  loadFlow(); clearInterval(flowTimer); flowTimer = setInterval(() => { if (!$("t-live").classList.contains("hide") && !$("detail").classList.contains("hide")) loadFlow(); else clearInterval(flowTimer); }, 60000);
   const body = $("liveBody"); body.innerHTML = '<div class="card loading">جاري التحميل…</div>';
   try {
     const L = (await api(`station?id=${stId(cur)}`)).latest; showErr("");
@@ -471,6 +481,7 @@ async function showAlerts() {
     const row = (a) => `<div class="fd ${a.ended_at ? "good" : a.level}" style="cursor:pointer" onclick="openStation('${a.station_id}')">${a.ended_at ? "🟢" : LV[a.level] || "⚪"} <b>${esc(a.station_name || a.station_id)}</b> — ${esc(a.message)} ${a.device_sn ? `<span class="badge ltr">${esc(a.device_sn)}</span>` : ""}<div class="muted" style="font-size:11px">${fmtDT(Date.parse(a.started_at))}${a.ended_at ? " → عاد " + fmtDT(Date.parse(a.ended_at)) : ""}${a.ended_at ? "" : ` <button class="ghost" style="font-size:11px;padding:3px 8px" onclick="event.stopPropagation();ticketFromAlert(${a.id},${a.station_id},'${esc(String(a.message).replace(/'/g, ""))}')">🎫 تذكرة</button>`}</div></div>`;
     body.innerHTML = `<div class="card"><h2>التنبيهات المفتوحة (${open.length})</h2>${open.map(row).join("") || '<div class="muted">لا توجد تنبيهات مفتوحة 👍</div>'}</div>
       <div class="card"><h3>انتهت خلال آخر 7 أيام (${closed.length})</h3>${closed.map(row).join("") || '<div class="muted">—</div>'}</div>
+      <div class="card"><h3>📲 التلغرام</h3><button onclick="tgSetup(this)">ربط بوت التلغرام</button><div id="tgOut" style="margin-top:6px;font-size:13px"></div></div>
       <div class="muted" style="padding:0 6px">يتم الفحص كل 30 دقيقة: أعطال Deye، الأنظمة المفصولة، والأجهزة المفصولة جزئياً. التنبيهات الجديدة تصل على التلغرام.</div>`;
   } catch (e) { body.innerHTML = ""; showErr(e.message); }
 }
@@ -788,7 +799,7 @@ async function loadFile() {
   const body = $("fileBody"); body.innerHTML = '<div class="card loading">جاري التحميل…</div>';
   try {
     sfile = await api(`sfile?id=${stId(cur)}`); showErr("");
-    const d = sfile.data || {}, w = d.warranty || [];
+    const d = sfile.data || {}, w = d.warranty || [], al = d.alerts || {};
     body.innerHTML = `<div class="card"><h3>👤 الزبون وروابطه</h3><div class="fl">
         <div><label>اسم الزبون</label><input id="sfName" value="${esc(d.customerName || cur.ownerName || "")}"></div>
         <div><label>هاتف / واتساب</label><input id="sfPhone" class="ltr" value="${esc(d.phone || cur.contactPhone || "")}"></div>
@@ -796,6 +807,17 @@ async function loadFile() {
         <div><label>سعر الكيلوواط للتوفير $</label><input id="sfPrice" type="number" step="0.01" value="${esc(d.price ?? 0.3)}"></div>
       </div><label style="font-size:13px;display:block;margin-top:6px"><input type="checkbox" id="sfMonthly" ${d.monthlyReport === false ? "" : "checked"}> إرسال التقرير الشهري لهذا الزبون</label>
       <div class="row" style="margin-top:8px"><button class="ghost" onclick="custLink()">🔗 رابط الزبون المباشر</button><button class="or" onclick="custWa()">📲 أرسل التقرير على واتساب</button></div><div id="custOut"></div></div>
+      <div class="card"><h3>🔔 تنبيهات الزبون والبطارية</h3><div class="fl">
+        <div><label>سعة البطارية الفعلية kWh</label><input id="sfBkwh" type="number" step="0.1" value="${esc(d.batteryKwh || "")}" placeholder="مثلاً 16"></div>
+        <div><label>نسبة الفصل (Shutdown) %</label><input id="sfCut" type="number" value="${esc(d.cutoffSoc || 20)}"></div>
+        <div><label>تنبيه عند البطارية % (مفصولة بفاصلة)</label><input id="sfLv" class="ltr" value="${esc((al.battLevels || [50, 30, 20]).join(","))}"></div>
+      </div><div style="font-size:13px;margin-top:6px;display:flex;flex-wrap:wrap;gap:10px">
+        <label><input type="checkbox" id="alGrid" ${al.grid === false ? "" : "checked"}> الدولة جاءت/انقطعت</label>
+        <label><input type="checkbox" id="alGen" ${al.gen === false ? "" : "checked"}> المولد اشتغل/توقف</label>
+        <label><input type="checkbox" id="alRt" ${al.runtime === false ? "" : "checked"}> البطارية لن تكفي للصباح</label>
+        <label><input type="checkbox" id="alOff" ${al.offline === false ? "" : "checked"}> النظام غير متصل</label>
+        <label><input type="checkbox" id="alFull" ${al.full ? "checked" : ""}> البطارية 100%</label></div>
+      <div class="row" style="margin-top:8px"><button class="or" onclick="custAlerts()">📲 أرسل للزبون رابط تفعيل التنبيهات</button></div><div id="alOut" class="muted" style="font-size:12px;margin-top:6px"></div></div>
       <div class="card"><h3>🛡️ الكفالات والأرقام التسلسلية</h3><div class="tw"><table class="tou" id="wTable"><thead><tr><th>القطعة</th><th>الموديل / Serial</th><th>الكفالة حتى</th><th></th></tr></thead><tbody>
         ${(w.length ? w : [{}]).map(wRow).join("")}</tbody></table></div><button class="ghost" onclick="$('wTable').tBodies[0].insertAdjacentHTML('beforeend', wRow({}))">+ سطر</button></div>
       <div class="card"><h3>📝 ملاحظات</h3><textarea id="sfNotes" rows="4" style="width:100%">${esc(d.notes || "")}</textarea><button style="margin-top:6px" onclick="saveFile()">حفظ ملف النظام</button></div>
@@ -804,13 +826,15 @@ async function loadFile() {
         <div class="thumbs">${(sfile.files || []).map((x) => `<a href="/api/file?id=${x.id}&${codeQ()}" target="_blank">${/^image\//.test(x.mime) ? `<img src="/api/file?id=${x.id}&${codeQ()}" loading="lazy">` : `<div style="width:92px;height:92px;border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:30px">📄</div>`}${esc(x.name)}</a>`).join("") || '<span class="muted">لا يوجد</span>'}</div></div>
       <div class="card"><h3>🎫 تذاكر هذا النظام</h3><div class="row"><input id="ntTitle" placeholder="عنوان التذكرة (مثلاً: تنظيف الألواح)" style="flex:1"><select id="ntPri" style="width:auto"><option value="normal">عادية</option><option value="high">عاجلة</option></select><button onclick="newTicket()">فتح تذكرة</button></div>
         <textarea id="ntDet" rows="2" placeholder="تفاصيل (اختياري)" style="width:100%;margin-top:6px"></textarea><div id="stTk" style="margin-top:8px"></div></div>`;
-    loadStationTickets();
+    loadStationTickets(); loadSubs();
   } catch (e) { body.innerHTML = ""; showErr(e.message); }
 }
 const wRow = (x) => `<tr><td><input data-f="item" value="${esc(x.item || "")}" placeholder="إنفرتر / بطارية / ألواح" style="width:130px"></td><td><input data-f="serial" class="ltr" value="${esc(x.serial || "")}" style="width:150px"></td><td><input data-f="until" type="date" value="${esc(x.until || "")}" style="width:140px"></td><td><button class="ghost" style="padding:4px 8px" onclick="this.closest('tr').remove()">✕</button></td></tr>`;
 function fileData() {
   const warranty = [...document.querySelectorAll("#wTable tbody tr")].map((tr) => { const o = {}; tr.querySelectorAll("[data-f]").forEach((i) => o[i.dataset.f] = i.value.trim()); return o; }).filter((o) => o.item || o.serial);
-  return { ...(sfile?.data || {}), customerName: $("sfName").value.trim(), phone: $("sfPhone").value.trim(), installDate: $("sfDate").value, price: Number($("sfPrice").value) || 0.3, monthlyReport: $("sfMonthly").checked, warranty, notes: $("sfNotes").value };
+  return { ...(sfile?.data || {}), customerName: $("sfName").value.trim(), phone: $("sfPhone").value.trim(), installDate: $("sfDate").value, price: Number($("sfPrice").value) || 0.3, monthlyReport: $("sfMonthly").checked, warranty, notes: $("sfNotes").value,
+    batteryKwh: Number($("sfBkwh").value) || null, cutoffSoc: Number($("sfCut").value) || 20,
+    alerts: { battLevels: $("sfLv").value.split(/[,،\s]+/).map(Number).filter((x) => x > 0 && x < 100), grid: $("alGrid").checked, gen: $("alGen").checked, runtime: $("alRt").checked, offline: $("alOff").checked, full: $("alFull").checked } };
 }
 async function saveFile() { try { await apiPost("sfile", { station_id: stId(cur), data: fileData() }); sfile.data = fileData(); showErr(""); alert("تم الحفظ ✅"); } catch (e) { showErr(e.message); } }
 async function custLink() {
@@ -818,6 +842,22 @@ async function custLink() {
     $("custOut").innerHTML = `<div class="fd info" style="margin-top:8px;word-break:break-all">رابط الزبون (يرى نظامه فقط، بدون رمز دخول):<br><a href="${url}" target="_blank" class="ltr">${url}</a><br><button class="ghost" style="margin-top:6px" onclick="navigator.clipboard.writeText('${url}').then(()=>this.textContent='تم النسخ ✓')">نسخ</button></div>`;
   } catch (e) { showErr(e.message); }
 }
+async function tgSetup(btn) {
+  btn.disabled = true;
+  try { const r = await api("tg-setup");
+    $("tgOut").innerHTML = r.configured ? `✅ البوت <b class="ltr">@${esc(r.bot)}</b> مربوط. <a href="${r.ownerLink}" target="_blank">اضغط هنا ثم Start</a> لتصلك تنبيهات المالك على تلفونك (المحادثات المربوطة: ${r.ownerChats}).` : `⚠️ ${esc(r.error)}`;
+  } catch (e) { showErr(e.message); } finally { btn.disabled = false; }
+}
+async function custAlerts() {
+  try {
+    await apiPost("sfile", { station_id: stId(cur), data: fileData() }); sfile.data = fileData();
+    const r = await api(`share?id=${stId(cur)}`);
+    if (!r.tg) { $("alOut").innerHTML = "⚠️ بوت التلغرام غير مربوط بعد — أضف TELEGRAM_TOKEN ثم افتح <b>ربط التلغرام</b> من التنبيهات."; return; }
+    window.open(r.waAlerts, "_blank");
+    $("alOut").innerHTML = `الرابط: <a class="ltr" href="${r.tg}" target="_blank">${r.tg}</a><br>المشتركون: ${r.subscribers.length ? r.subscribers.map((x) => esc(x.name || "—")).join("، ") : "لا أحد بعد"}`;
+  } catch (e) { showErr(e.message); }
+}
+async function loadSubs() { try { const r = await api(`share?id=${stId(cur)}`); if ($("alOut")) $("alOut").innerHTML = r.tg ? `المشتركون بالتنبيهات: ${r.subscribers.length ? r.subscribers.map((x) => esc(x.name || "—")).join("، ") : "لا أحد بعد"}` : "بوت التلغرام غير مربوط بعد."; } catch (e) {} }
 async function custWa() {
   try { await apiPost("sfile", { station_id: stId(cur), data: fileData() }); const r = await api(`share?id=${stId(cur)}`); window.open(r.wa, "_blank"); } catch (e) { showErr(e.message); }
 }
