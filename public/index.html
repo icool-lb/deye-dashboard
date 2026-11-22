@@ -811,6 +811,7 @@ async function loadFile() {
         <div><label>اسم الزبون</label><input id="sfName" value="${esc(d.customerName || cur.ownerName || "")}"></div>
         <div><label>هاتف / واتساب</label><input id="sfPhone" class="ltr" value="${esc(d.phone || cur.contactPhone || "")}"></div>
         <div><label>تاريخ التركيب</label><input id="sfDate" type="date" value="${esc(d.installDate || "")}"></div>
+        <div><label>المنطقة / البلدة</label><input id="sfRegion" value="${esc(d.region || "")}" placeholder="تلقائي من الخريطة"></div>
         <div><label>سعر الكيلوواط للتوفير $</label><input id="sfPrice" type="number" step="0.01" value="${esc(d.price ?? 0.3)}"></div>
       </div><label style="font-size:13px;display:block;margin-top:6px"><input type="checkbox" id="sfMonthly" ${d.monthlyReport === false ? "" : "checked"}> إرسال التقرير الشهري لهذا الزبون</label>
       <div class="row" style="margin-top:8px"><button class="ghost" onclick="custLink()">🔗 رابط الزبون المباشر</button><button class="or" onclick="custWa()">📲 أرسل التقرير على واتساب</button></div><div id="custOut"></div></div>
@@ -839,7 +840,7 @@ async function loadFile() {
 const wRow = (x) => `<tr><td><input data-f="item" value="${esc(x.item || "")}" placeholder="إنفرتر / بطارية / ألواح" style="width:130px"></td><td><input data-f="serial" class="ltr" value="${esc(x.serial || "")}" style="width:150px"></td><td><input data-f="until" type="date" value="${esc(x.until || "")}" style="width:140px"></td><td><button class="ghost" style="padding:4px 8px" onclick="this.closest('tr').remove()">✕</button></td></tr>`;
 function fileData() {
   const warranty = [...document.querySelectorAll("#wTable tbody tr")].map((tr) => { const o = {}; tr.querySelectorAll("[data-f]").forEach((i) => o[i.dataset.f] = i.value.trim()); return o; }).filter((o) => o.item || o.serial);
-  return { ...(sfile?.data || {}), customerName: $("sfName").value.trim(), phone: $("sfPhone").value.trim(), installDate: $("sfDate").value, price: Number($("sfPrice").value) || 0.3, monthlyReport: $("sfMonthly").checked, warranty, notes: $("sfNotes").value,
+  return { ...(sfile?.data || {}), customerName: $("sfName").value.trim(), region: $("sfRegion").value.trim(), phone: $("sfPhone").value.trim(), installDate: $("sfDate").value, price: Number($("sfPrice").value) || 0.3, monthlyReport: $("sfMonthly").checked, warranty, notes: $("sfNotes").value,
     batteryKwh: Number($("sfBkwh").value) || null, cutoffSoc: Number($("sfCut").value) || 20,
     alerts: { battLevels: $("sfLv").value.split(/[,،\s]+/).map(Number).filter((x) => x > 0 && x < 100), grid: $("alGrid").checked, gen: $("alGen").checked, runtime: $("alRt").checked, offline: $("alOff").checked, full: $("alFull").checked } };
 }
